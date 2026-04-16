@@ -1,3 +1,6 @@
+{{-- ============================================================
+     collection.blade.php — responsive version
+     ============================================================ --}}
 @extends('layouts.app')
 @section('title','Collection')
 @section('page-title','Collection')
@@ -13,7 +16,7 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
 @section('content')
 
 {{-- Summary KPIs --}}
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+<div class="grid-kpi-4" style="margin-bottom:20px">
   <div class="kpi-card card-accent-blue">
     <div class="kpi-label">Collection Target</div>
     <div class="kpi-value mono">{{ fmtIDR($summary['target']) }}</div>
@@ -40,18 +43,18 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
   <div style="font-size:12px;font-weight:700;margin-bottom:12px">📝 Record Collection Payment</div>
   <form method="POST" action="{{ route('dashboard.collect') }}" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
     @csrf
-    <div>
+    <div style="flex:1;min-width:200px">
       <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Customer</label>
-      <select name="customer_id" class="filter-input" required style="min-width:260px">
+      <select name="customer_id" class="filter-input" required style="width:100%">
         <option value="">— Select Customer —</option>
         @foreach($rows->sortBy('customer_name') as $r)
         <option value="{{ $r->customer_id }}">{{ $r->customer_name }} ({{ $r->plant }})</option>
         @endforeach
       </select>
     </div>
-    <div>
+    <div style="flex:1;min-width:160px">
       <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Amount (IDR)</label>
-      <input type="number" name="amount" min="1" class="filter-input" placeholder="e.g. 500000000" required style="width:200px">
+      <input type="number" name="amount" min="1" class="filter-input" placeholder="e.g. 500000000" required style="width:100%">
     </div>
     <button type="submit" class="btn btn-primary">+ Record</button>
   </form>
@@ -62,12 +65,12 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
   <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:12px;font-weight:700">Collection Detail — {{ $rows->count() }} customers</div>
   </div>
-  <div style="overflow-x:auto">
+  <div class="table-scroll">
     <table class="data-table">
       <thead><tr>
         <th>Customer</th><th>Plant</th><th>Collector</th>
         <th class="num">Target</th><th class="num">Actual</th><th class="num">Rate</th><th>Status</th>
-        <th style="width:120px">Progress</th>
+        <th style="min-width:100px">Progress</th>
       </tr></thead>
       <tbody>
       @foreach($rows as $r)

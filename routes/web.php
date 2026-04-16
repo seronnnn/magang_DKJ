@@ -2,7 +2,20 @@
 
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
+// guest (not logged in)
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+
+// protected (must login)
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dashboard.index'); // 
+    });
+
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
 Route::get('/', fn() => redirect()->route('dashboard.index'));
 
 Route::prefix('dashboard')->name('dashboard.')->group(function () {

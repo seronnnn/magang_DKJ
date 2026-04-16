@@ -15,7 +15,7 @@ function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
 @section('content')
 
 {{-- Bucket KPI Cards --}}
-<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
+<div class="grid-kpi-5" style="margin-bottom:20px">
   @php
   $bucketDefs = [
     ['label'=>'Current','key'=>'current','color'=>'card-accent-blue','tc'=>'#1B3A6B'],
@@ -58,10 +58,10 @@ function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
 
 {{-- Customer Table --}}
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
-  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:12px;font-weight:700">Customer Aging Detail ({{ $rows->count() }} records)</div>
   </div>
-  <div style="overflow-x:auto">
+  <div class="table-scroll">
     <table class="data-table">
       <thead><tr>
         <th>Customer</th><th>Plant</th><th>Collector</th>
@@ -85,11 +85,8 @@ function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
         <td class="num" style="{{ $r->days_60_90 > 0 ? 'color:#ea580c;font-weight:600' : '' }}">{{ $r->days_60_90 > 0 ? fmtIDR($r->days_60_90) : '—' }}</td>
         <td class="num" style="{{ $r->days_over_90 > 0 ? 'color:#dc2626;font-weight:700' : '' }}">{{ $r->days_over_90 > 0 ? fmtIDR($r->days_over_90) : '—' }}</td>
         <td class="num" style="font-weight:700">{{ fmtIDR($r->total) }}</td>
-        <td style="min-width:100px">
-          <div class="progress-bg">
-            <div class="progress-fill" style="width:{{ pctOf($r->current,$tot) }}%;background:#1B3A6B;float:left"></div>
-          </div>
-          <div style="display:flex;gap:2px;height:6px;border-radius:4px;overflow:hidden;margin-top:2px">
+        <td style="min-width:80px">
+          <div style="display:flex;gap:2px;height:6px;border-radius:4px;overflow:hidden">
             <div style="flex:{{ $r->current }};background:#1B3A6B"></div>
             <div style="flex:{{ $r->days_1_30 }};background:#1e88e5"></div>
             <div style="flex:{{ $r->days_30_60 }};background:#d97706"></div>

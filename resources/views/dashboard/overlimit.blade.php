@@ -1,3 +1,4 @@
+{{-- overlimit.blade.php --}}
 @extends('layouts.app')
 @section('title','SO Overlimit')
 @section('page-title','SO Overlimit')
@@ -12,7 +13,7 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
 
 @section('content')
 
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+<div class="grid-kpi-3" style="margin-bottom:20px">
   <div class="kpi-card card-accent-red">
     <div class="kpi-label">Overlimit Customers</div>
     <div class="kpi-value" style="color:#dc2626">{{ $rows->count() }}</div>
@@ -34,7 +35,7 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
   <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:#fff5f5">
     <div style="font-size:12px;font-weight:700;color:#dc2626">⚠️ Customers with Overdue Sales Orders ({{ $rows->count() }})</div>
   </div>
-  <div style="overflow-x:auto">
+  <div class="table-scroll">
     <table class="data-table">
       <thead><tr>
         <th>Customer</th><th>Plant</th><th>Collector</th>

@@ -21,25 +21,18 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',          // ← add this line
     ];
+ 
+    // Convenience helpers you can add:
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+ 
+    public function isUser(): bool
+    {
+        return $this->role === 'user';
+    }
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-    ];
 }

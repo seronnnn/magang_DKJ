@@ -7,8 +7,8 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
 @endphp
 
 @section('topbar-actions')
-  <form method="GET" action="{{ route('dashboard.customers') }}" style="display:flex;gap:8px;align-items:center">
-    <input type="text" name="search" value="{{ request('search') }}" class="filter-input" placeholder="Search customer…" style="width:200px">
+  <form method="GET" action="{{ route('dashboard.customers') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input type="text" name="search" value="{{ request('search') }}" class="filter-input" placeholder="Search customer…" style="width:160px">
     @if(request('plant'))<input type="hidden" name="plant" value="{{ request('plant') }}">@endif
     @if(request('collector'))<input type="hidden" name="collector" value="{{ request('collector') }}">@endif
     <button type="submit" class="btn btn-primary" style="padding:7px 14px">Search</button>
@@ -20,10 +20,10 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
 @section('content')
 
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
-  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:12px;font-weight:700">All Customers ({{ $rows->count() }} records)</div>
   </div>
-  <div style="overflow-x:auto">
+  <div class="table-scroll">
     <table class="data-table">
       <thead><tr>
         <th>Customer ID</th><th>Customer Name</th><th>Plant</th><th>Collector</th>
