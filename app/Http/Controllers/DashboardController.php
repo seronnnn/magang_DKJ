@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ArData;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -30,8 +31,8 @@ class DashboardController extends Controller
             'over_90'    => $rows->sum('days_over_90'),
         ];
 
-        $totalSO         = $rows->sum('total_so');
-        $soWithOD        = $rows->sum('so_with_od');
+        $totalSO          = $rows->sum('total_so');
+        $soWithOD         = $rows->sum('so_with_od');
         $overdueCustomers = $rows->filter(fn($r) => ($r->days_60_90 + $r->days_over_90) > 0)->count();
 
         $byCollector = $rows->groupBy('collection_by')->map(fn($g) => [
@@ -52,25 +53,25 @@ class DashboardController extends Controller
         $collectors   = ArData::select('collection_by')->distinct()->orderBy('collection_by')->pluck('collection_by');
 
         return view('dashboard.index', compact(
-            'totalAR','totalTarget','totalCollected','collectionRate',
-            'aging','totalSO','soWithOD','overdueCustomers',
-            'byCollector','byPlant','topCustomers','plants','collectors','rows'
+            'totalAR', 'totalTarget', 'totalCollected', 'collectionRate',
+            'aging', 'totalSO', 'soWithOD', 'overdueCustomers',
+            'byCollector', 'byPlant', 'topCustomers', 'plants', 'collectors', 'rows'
         ));
     }
 
     public function aging(Request $request)
     {
-        $rows = $this->baseQuery($request)->orderByDesc('total')->get();
+        $rows       = $this->baseQuery($request)->orderByDesc('total')->get();
         $plants     = ArData::select('plant')->distinct()->orderBy('plant')->pluck('plant');
         $collectors = ArData::select('collection_by')->distinct()->orderBy('collection_by')->pluck('collection_by');
-        $buckets = [
+        $buckets    = [
             'current'    => $rows->sum('current'),
             'days_1_30'  => $rows->sum('days_1_30'),
             'days_30_60' => $rows->sum('days_30_60'),
             'days_60_90' => $rows->sum('days_60_90'),
             'over_90'    => $rows->sum('days_over_90'),
         ];
-        return view('dashboard.aging', compact('rows','buckets','plants','collectors'));
+        return view('dashboard.aging', compact('rows', 'buckets', 'plants', 'collectors'));
     }
 
     public function collection(Request $request)
@@ -78,7 +79,7 @@ class DashboardController extends Controller
         $rows       = $this->baseQuery($request)->orderByDesc('ar_target')->get();
         $plants     = ArData::select('plant')->distinct()->orderBy('plant')->pluck('plant');
         $collectors = ArData::select('collection_by')->distinct()->orderBy('collection_by')->pluck('collection_by');
-        $summary = [
+        $summary    = [
             'target'    => $rows->sum('ar_target'),
             'actual'    => $rows->sum('ar_actual'),
             'rate'      => $rows->sum('ar_target') > 0 ? round($rows->sum('ar_actual') / $rows->sum('ar_target') * 100, 1) : null,
@@ -87,50 +88,59 @@ class DashboardController extends Controller
             'none'      => $rows->filter(fn($r) => $r->collection_rate !== null && $r->collection_rate < 70)->count(),
             'no_target' => $rows->filter(fn($r) => $r->collection_rate === null)->count(),
         ];
-        return view('dashboard.collection', compact('rows','summary','plants','collectors'));
+        return view('dashboard.collection', compact('rows', 'summary', 'plants', 'collectors'));
     }
 
     public function overlimit(Request $request)
     {
-        $rows = $this->baseQuery($request)->where('so_with_od','>',0)->orderByDesc('so_with_od')->get();
-        $plants     = ArData::select('plant')->distinct()->orderBy('plant')->pluck('plant');
-        $collectors = ArData::select('collection_by')->distinct()->orderBy('collection_by')->pluck('collection_by');
+        $rows           = $this->baseQuery($request)->where('so_with_od', '>', 0)->orderByDesc('so_with_od')->get();
+        $plants         = ArData::select('plant')->distinct()->orderBy('plant')->pluck('plant');
+        $collectors     = ArData::select('collection_by')->distinct()->orderBy('collection_by')->pluck('collection_by');
         $totalOverlimit = $rows->sum('so_with_od');
         $totalExposed   = $rows->sum('total');
-        return view('dashboard.overlimit', compact('rows','totalOverlimit','totalExposed','plants','collectors'));
+        return view('dashboard.overlimit', compact('rows', 'totalOverlimit', 'totalExposed', 'plants', 'collectors'));
     }
 
     public function customers(Request $request)
     {
         $q = $this->baseQuery($request);
         if ($s = $request->search) {
-            $q->where(fn($sub) => $sub->where('customer_name','like',"%$s%")->orWhere('customer_id','like',"%$s%"));
+            $q->where(fn($sub) => $sub->where('customer_name', 'like', "%$s%")->orWhere('customer_id', 'like', "%$s%"));
         }
         $rows       = $q->orderBy('customer_name')->get();
         $plants     = ArData::select('plant')->distinct()->orderBy('plant')->pluck('plant');
         $collectors = ArData::select('collection_by')->distinct()->orderBy('collection_by')->pluck('collection_by');
-        return view('dashboard.customers', compact('rows','plants','collectors'));
+        return view('dashboard.customers', compact('rows', 'plants', 'collectors'));
     }
 
     public function recordPayment(Request $request)
     {
-        $v = $request->validate(['customer_id'=>'required|exists:ar_data,customer_id','amount'=>'required|numeric|min:1']);
-        ArData::where('customer_id',$v['customer_id'])->where('period','2026-01-31')->increment('ar_actual',(int)$v['amount']);
-        return back()->with('success','Payment recorded successfully.');
+        $v = $request->validate([
+            'customer_id' => 'required|exists:ar_data,customer_id',
+            'amount'      => 'required|numeric|min:1',
+        ]);
+        ArData::where('customer_id', $v['customer_id'])->where('period', '2026-01-31')->increment('ar_actual', (int) $v['amount']);
+        return back()->with('success', 'Payment recorded successfully.');
     }
 
     public function export(Request $request)
     {
-        $rows = $this->baseQuery($request)->get();
-        $cols = ['customer_id','customer_name','collection_by','plant','current','days_1_30','days_30_60','days_60_90','days_over_90','total','ar_target','ar_actual','so_without_od','so_with_od','total_so'];
-        $headers = ['Content-Type'=>'text/csv','Content-Disposition'=>'attachment; filename="ar_dashboard.csv"'];
-        $cb = function() use($rows,$cols){ $f=fopen('php://output','w'); fputcsv($f,$cols); foreach($rows as $r){ fputcsv($f,array_map(fn($c)=>$r->$c,$cols)); } fclose($f); };
-        return response()->stream($cb,200,$headers);
+        $rows    = $this->baseQuery($request)->get();
+        $cols    = ['customer_id', 'customer_name', 'collection_by', 'plant', 'current', 'days_1_30', 'days_30_60', 'days_60_90', 'days_over_90', 'total', 'ar_target', 'ar_actual', 'so_without_od', 'so_with_od', 'total_so'];
+        $headers = ['Content-Type' => 'text/csv', 'Content-Disposition' => 'attachment; filename="ar_dashboard.csv"'];
+        $cb      = function () use ($rows, $cols) {
+            $f = fopen('php://output', 'w');
+            fputcsv($f, $cols);
+            foreach ($rows as $r) {
+                fputcsv($f, array_map(fn($c) => $r->$c, $cols));
+            }
+            fclose($f);
+        };
+        return response()->stream($cb, 200, $headers);
     }
 
     public function agingBucket(Request $request)
     {
-        // Map JS bucket key → model column
         $columnMap = [
             'current'    => 'current',
             'days_1_30'  => 'days_1_30',
@@ -148,11 +158,11 @@ class DashboardController extends Controller
             ->get(['customer_name', 'collection_by', 'plant', $column, 'total']);
 
         $formatted = $rows->map(fn($r) => [
-            'customer_name'  => $r->customer_name,
-            'collection_by'  => $r->collection_by,
-            'plant'          => $r->plant,
-            'bucket_amount'  => $r->$column,
-            'total'          => $r->total,
+            'customer_name' => $r->customer_name,
+            'collection_by' => $r->collection_by,
+            'plant'         => $r->plant,
+            'bucket_amount' => $r->$column,
+            'total'         => $r->total,
         ]);
 
         return response()->json([
@@ -161,5 +171,38 @@ class DashboardController extends Controller
             'bucket_sum' => $rows->sum($column),
             'rows'       => $formatted,
         ]);
+    }
+
+    /**
+     * Admin-only: update an ar_data row via AJAX modal.
+     */
+    public function updateArData(Request $request, int $id)
+    {
+        // Enforce admin role
+        if (! Auth::user()?->isAdmin()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'customer_name' => 'sometimes|string|max:150',
+            'collection_by' => 'sometimes|string|max:50',
+            'plant'         => 'sometimes|string|max:10',
+            'current'       => 'sometimes|integer|min:0',
+            'days_1_30'     => 'sometimes|integer|min:0',
+            'days_30_60'    => 'sometimes|integer|min:0',
+            'days_60_90'    => 'sometimes|integer|min:0',
+            'days_over_90'  => 'sometimes|integer|min:0',
+            'total'         => 'sometimes|integer|min:0',
+            'ar_target'     => 'sometimes|integer|min:0',
+            'ar_actual'     => 'sometimes|integer|min:0',
+            'so_without_od' => 'sometimes|integer|min:0',
+            'so_with_od'    => 'sometimes|integer|min:0',
+            'total_so'      => 'sometimes|integer|min:0',
+        ]);
+
+        $row = ArData::findOrFail($id);
+        $row->update($data);
+
+        return response()->json(['success' => true, 'row' => $row]);
     }
 }

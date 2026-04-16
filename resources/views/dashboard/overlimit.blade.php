@@ -1,10 +1,10 @@
-{{-- overlimit.blade.php --}}
 @extends('layouts.app')
 @section('title','SO Overlimit')
 @section('page-title','SO Overlimit')
 
 @php
 function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if($v>=1e9) return 'Rp '.number_format($v/1e9,2).'B'; if($v>=1e6) return 'Rp '.number_format($v/1e6,1).'M'; return 'Rp '.number_format($v); }
+$isAdmin = Auth::user()->isAdmin();
 @endphp
 
 @section('topbar-actions')
@@ -41,6 +41,7 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
         <th>Customer</th><th>Plant</th><th>Collector</th>
         <th class="num">SO Without OD</th><th class="num">SO With OD</th>
         <th class="num">Total SO</th><th class="num">Total AR</th><th>Risk</th>
+        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
       </tr></thead>
       <tbody>
       @foreach($rows as $r)
@@ -56,6 +57,19 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
         <td class="num">{{ $r->total_so }}</td>
         <td class="num">{{ fmtIDR($r->total) }}</td>
         <td><span class="badge {{ $risk[1] }}">{{ $risk[0] }}</span></td>
+        @if($isAdmin)
+        <td style="text-align:center">
+          <button class="btn btn-warning btn-sm"
+            onclick='openEditModal(@json([
+              "id"=>$r->id,"customer_id"=>$r->customer_id,"customer_name"=>$r->customer_name,
+              "collection_by"=>$r->collection_by,"plant"=>$r->plant,
+              "current"=>$r->current,"days_1_30"=>$r->days_1_30,"days_30_60"=>$r->days_30_60,
+              "days_60_90"=>$r->days_60_90,"days_over_90"=>$r->days_over_90,
+              "total"=>$r->total,"ar_target"=>$r->ar_target,"ar_actual"=>$r->ar_actual,
+              "so_without_od"=>$r->so_without_od,"so_with_od"=>$r->so_with_od,"total_so"=>$r->total_so
+            ]))'>✏️</button>
+        </td>
+        @endif
       </tr>
       @endforeach
       </tbody>

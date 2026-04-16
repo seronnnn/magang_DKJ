@@ -4,6 +4,7 @@
 
 @php
 function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if($v>=1e9) return 'Rp '.number_format($v/1e9,2).'B'; if($v>=1e6) return 'Rp '.number_format($v/1e6,1).'M'; return 'Rp '.number_format($v); }
+$isAdmin = Auth::user()->isAdmin();
 @endphp
 
 @section('topbar-actions')
@@ -30,14 +31,15 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
         <th class="num">Current</th><th class="num">1-30d</th><th class="num">>60d</th>
         <th class="num">Total AR</th><th class="num">Target</th><th class="num">Actual</th>
         <th>Collection</th><th class="num">SO OD</th>
+        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
       </tr></thead>
       <tbody>
       @foreach($rows as $r)
       @php
-        $rate   = $r->collection_rate;
-        $status = $r->collection_status;
-        $badgeCls = match($status){ 'achieved'=>'badge-green','partial'=>'badge-yellow','none'=>'badge-red', default=>'badge-gray' };
-        $statusLabel = match($status){ 'achieved'=>'Achieved','partial'=>'Partial','none'=>'None', default=>'No Target' };
+        $rate       = $r->collection_rate;
+        $status     = $r->collection_status;
+        $badgeCls   = match($status){ 'achieved'=>'badge-green','partial'=>'badge-yellow','none'=>'badge-red', default=>'badge-gray' };
+        $statusLabel= match($status){ 'achieved'=>'Achieved','partial'=>'Partial','none'=>'None', default=>'No Target' };
         $hasOverdue = ($r->days_60_90 + $r->days_over_90) > 0;
       @endphp
       <tr style="{{ $hasOverdue ? 'background:#fff9f9' : '' }}">
@@ -60,6 +62,19 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
         <td class="num" style="{{ $r->so_with_od > 0 ? 'color:#dc2626;font-weight:700' : '' }}">
           {{ $r->so_with_od > 0 ? $r->so_with_od : '—' }}
         </td>
+        @if($isAdmin)
+        <td style="text-align:center">
+          <button class="btn btn-warning btn-sm"
+            onclick='openEditModal(@json([
+              "id"=>$r->id,"customer_id"=>$r->customer_id,"customer_name"=>$r->customer_name,
+              "collection_by"=>$r->collection_by,"plant"=>$r->plant,
+              "current"=>$r->current,"days_1_30"=>$r->days_1_30,"days_30_60"=>$r->days_30_60,
+              "days_60_90"=>$r->days_60_90,"days_over_90"=>$r->days_over_90,
+              "total"=>$r->total,"ar_target"=>$r->ar_target,"ar_actual"=>$r->ar_actual,
+              "so_without_od"=>$r->so_without_od,"so_with_od"=>$r->so_with_od,"total_so"=>$r->total_so
+            ]))'>✏️</button>
+        </td>
+        @endif
       </tr>
       @endforeach
       </tbody>

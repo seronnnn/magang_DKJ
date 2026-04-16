@@ -1,12 +1,10 @@
-{{-- ============================================================
-     collection.blade.php — responsive version
-     ============================================================ --}}
 @extends('layouts.app')
 @section('title','Collection')
 @section('page-title','Collection')
 
 @php
 function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if($v>=1e9) return 'Rp '.number_format($v/1e9,2).'B'; if($v>=1e6) return 'Rp '.number_format($v/1e6,1).'M'; return 'Rp '.number_format($v); }
+$isAdmin = Auth::user()->isAdmin();
 @endphp
 
 @section('topbar-actions')
@@ -69,18 +67,19 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
     <table class="data-table">
       <thead><tr>
         <th>Customer</th><th>Plant</th><th>Collector</th>
-        <th class="num">Target</th><th class="num">Actual</th><th class="num">Rate</th><th>Status</th>
-        <th style="min-width:100px">Progress</th>
+        <th class="num">Target</th><th class="num">Actual</th><th class="num">Rate</th>
+        <th>Status</th><th style="min-width:100px">Progress</th>
+        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
       </tr></thead>
       <tbody>
       @foreach($rows as $r)
       @php
-        $rate = $r->collection_rate;
-        $status = $r->collection_status;
-        $badgeCls = match($status){ 'achieved'=>'badge-green','partial'=>'badge-yellow','none'=>'badge-red', default=>'badge-gray' };
-        $statusLabel = match($status){ 'achieved'=>'Achieved','partial'=>'Partial','none'=>'None', default=>'No Target' };
-        $barColor = match($status){ 'achieved'=>'#16a34a','partial'=>'#d97706','none'=>'#dc2626', default=>'#94a3b8' };
-        $pct = min($rate ?? 0, 100);
+        $rate       = $r->collection_rate;
+        $status     = $r->collection_status;
+        $badgeCls   = match($status){ 'achieved'=>'badge-green','partial'=>'badge-yellow','none'=>'badge-red', default=>'badge-gray' };
+        $statusLabel= match($status){ 'achieved'=>'Achieved','partial'=>'Partial','none'=>'None', default=>'No Target' };
+        $barColor   = match($status){ 'achieved'=>'#16a34a','partial'=>'#d97706','none'=>'#dc2626', default=>'#94a3b8' };
+        $pct        = min($rate ?? 0, 100);
       @endphp
       <tr>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="{{ $r->customer_name }}">{{ $r->customer_name }}</td>
@@ -95,6 +94,19 @@ function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if(
             <div class="progress-fill" style="width:{{ $pct }}%;background:{{ $barColor }}"></div>
           </div>
         </td>
+        @if($isAdmin)
+        <td style="text-align:center">
+          <button class="btn btn-warning btn-sm"
+            onclick='openEditModal(@json([
+              "id"=>$r->id,"customer_id"=>$r->customer_id,"customer_name"=>$r->customer_name,
+              "collection_by"=>$r->collection_by,"plant"=>$r->plant,
+              "current"=>$r->current,"days_1_30"=>$r->days_1_30,"days_30_60"=>$r->days_30_60,
+              "days_60_90"=>$r->days_60_90,"days_over_90"=>$r->days_over_90,
+              "total"=>$r->total,"ar_target"=>$r->ar_target,"ar_actual"=>$r->ar_actual,
+              "so_without_od"=>$r->so_without_od,"so_with_od"=>$r->so_with_od,"total_so"=>$r->total_so
+            ]))'>✏️</button>
+        </td>
+        @endif
       </tr>
       @endforeach
       </tbody>

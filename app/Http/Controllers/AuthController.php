@@ -9,56 +9,52 @@ use App\Models\User;
 
 class AuthController extends Controller
 {
-    // show login
     public function showLogin()
     {
         return view('auth.login');
     }
 
-    // login process
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+            return redirect()->intended(route('dashboard.index'));
         }
 
-        return back()->with('error', 'Invalid credentials');
+        return back()->withErrors(['email' => 'Invalid credentials.'])->onlyInput('email');
     }
 
-    // show register
     public function showRegister()
     {
         return view('auth.register');
     }
 
-    // register process
     public function register(Request $request)
     {
         $request->validate([
-            'name' => 'required',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:5'
+            'name'     => 'required|string|max:100',
+            'email'    => 'required|email|unique:users',
+            'password' => 'required|min:5',
+            'role'     => 'required|in:admin,user',
         ]);
 
         User::create([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'     => $request->name,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'user'
+            'role'     => $request->role,
         ]);
 
-        return redirect('/login')->with('success', 'Register success');
+        return redirect()->route('login')->with('success', 'Account created! Please log in.');
     }
 
-    // logout
     public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect('/login');
+        return redirect()->route('login');
     }
 }

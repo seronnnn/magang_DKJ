@@ -6,6 +6,7 @@
 function fmtIDR($v){ if($v>=1e12) return 'Rp '.number_format($v/1e12,2).'T'; if($v>=1e9) return 'Rp '.number_format($v/1e9,2).'B'; if($v>=1e6) return 'Rp '.number_format($v/1e6,1).'M'; return 'Rp '.number_format($v); }
 $totalBucket = array_sum($buckets);
 function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
+$isAdmin = Auth::user()->isAdmin();
 @endphp
 
 @section('topbar-actions')
@@ -18,11 +19,11 @@ function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
 <div class="grid-kpi-5" style="margin-bottom:20px">
   @php
   $bucketDefs = [
-    ['label'=>'Current','key'=>'current','color'=>'card-accent-blue','tc'=>'#1B3A6B'],
-    ['label'=>'1–30 Days','key'=>'days_1_30','color'=>'card-accent-green','tc'=>'#16a34a'],
-    ['label'=>'30–60 Days','key'=>'days_30_60','color'=>'card-accent-yellow','tc'=>'#d97706'],
-    ['label'=>'60–90 Days','key'=>'days_60_90','color'=>'card-accent-red','tc'=>'#ea580c'],
-    ['label'=>'> 90 Days','key'=>'over_90','color'=>'card-accent-red','tc'=>'#dc2626'],
+    ['label'=>'Current',   'key'=>'current',    'color'=>'card-accent-blue',  'tc'=>'#1B3A6B'],
+    ['label'=>'1–30 Days', 'key'=>'days_1_30',  'color'=>'card-accent-green', 'tc'=>'#16a34a'],
+    ['label'=>'30–60 Days','key'=>'days_30_60', 'color'=>'card-accent-yellow','tc'=>'#d97706'],
+    ['label'=>'60–90 Days','key'=>'days_60_90', 'color'=>'card-accent-red',   'tc'=>'#ea580c'],
+    ['label'=>'> 90 Days', 'key'=>'over_90',    'color'=>'card-accent-red',   'tc'=>'#dc2626'],
   ];
   @endphp
   @foreach($bucketDefs as $b)
@@ -68,13 +69,11 @@ function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
         <th class="num">Current</th><th class="num">1-30d</th>
         <th class="num">30-60d</th><th class="num">60-90d</th>
         <th class="num">>90d</th><th class="num">Total</th><th>Aging</th>
+        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
       </tr></thead>
       <tbody>
       @foreach($rows as $r)
-      @php
-        $hasOverdue = ($r->days_60_90 + $r->days_over_90) > 0;
-        $tot = $r->total ?: 1;
-      @endphp
+      @php $hasOverdue = ($r->days_60_90 + $r->days_over_90) > 0; @endphp
       <tr style="{{ $hasOverdue ? 'background:#fff5f5' : '' }}">
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="{{ $r->customer_name }}">{{ $r->customer_name }}</td>
         <td><span class="badge badge-blue">{{ $r->plant }}</span></td>
@@ -94,6 +93,19 @@ function pctOf($v,$t){ return $t>0 ? round($v/$t*100,1) : 0; }
             <div style="flex:{{ $r->days_over_90 }};background:#dc2626"></div>
           </div>
         </td>
+        @if($isAdmin)
+        <td style="text-align:center">
+          <button class="btn btn-warning btn-sm"
+            onclick='openEditModal(@json([
+              "id"=>$r->id,"customer_id"=>$r->customer_id,"customer_name"=>$r->customer_name,
+              "collection_by"=>$r->collection_by,"plant"=>$r->plant,
+              "current"=>$r->current,"days_1_30"=>$r->days_1_30,"days_30_60"=>$r->days_30_60,
+              "days_60_90"=>$r->days_60_90,"days_over_90"=>$r->days_over_90,
+              "total"=>$r->total,"ar_target"=>$r->ar_target,"ar_actual"=>$r->ar_actual,
+              "so_without_od"=>$r->so_without_od,"so_with_od"=>$r->so_with_od,"total_so"=>$r->total_so
+            ]))'>✏️</button>
+        </td>
+        @endif
       </tr>
       @endforeach
       </tbody>
