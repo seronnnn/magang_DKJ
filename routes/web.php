@@ -15,6 +15,11 @@ Route::middleware('guest')->group(function () {
     Route::post('/register',[AuthController::class, 'register']);
 });
 
+    Route::put('/ar-data/{id}',     [DashboardController::class, 'updateArData'])->name('updateArData');
+    Route::put('/aging/{id}',       [DashboardController::class, 'updateArData'])->name('updateAging');
+    Route::put('/collection/{id}',  [DashboardController::class, 'updateArData'])->name('updateCollection');
+    Route::put('/customers/{id}',   [DashboardController::class, 'updateArData'])->name('updateCustomers');
+    Route::put('/overlimit/{id}',   [DashboardController::class, 'updateArData'])->name('updateOverlimit');
 // ─── Auth-protected routes ───────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -32,4 +37,6 @@ Route::middleware('auth')->group(function () {
         // Admin-only: inline row editing (controller enforces admin check)
         Route::put('/ar-data/{id}', [DashboardController::class, 'updateArData'])->name('updateArData');
     });
+
+    
 });

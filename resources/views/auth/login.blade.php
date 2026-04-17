@@ -32,7 +32,7 @@
                             d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                     </svg>
                 </div>
-                <span class="text-white font-bold text-xl tracking-tight">DKJ<span class="text-sky-400">Sistem</span></span>
+                <span class="text-white font-bold text-xl tracking-tight">PT. Dunia Kimia Jaya</span>
             </div>
         </div>
 
@@ -43,25 +43,14 @@
                 Halo, <span class="text-sky-400">Selamat</span><br>Datang Kembali!
             </h1>
             <p class="text-slate-400 text-base leading-relaxed max-w-sm">
-                Masuk ke akun Anda untuk mengakses sistem informasi magang DKJ dan melanjutkan aktivitas Anda.
+                Masuk ke akun Anda untuk mengakses sistem pengelola data AR dan melanjutkan aktivitas Anda.
             </p>
 
-            {{-- Stats / badges --}}
-            <div class="flex gap-4 pt-2">
-                <div class="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 flex-1">
-                    <p class="text-2xl font-bold text-white">200+</p>
-                    <p class="text-xs text-slate-400 mt-0.5">Peserta aktif</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 flex-1">
-                    <p class="text-2xl font-bold text-white">50+</p>
-                    <p class="text-xs text-slate-400 mt-0.5">Program magang</p>
-                </div>
-            </div>
         </div>
 
         {{-- Footer --}}
         <div class="relative z-10">
-            <p class="text-slate-500 text-xs">© {{ date('Y') }} Dewan Kesenian Jakarta · Sistem Informasi Magang</p>
+            <p class="text-slate-500 text-xs">© {{ date('Y') }} PT. Dunia Kimia Jaya</p>
         </div>
     </div>
 
@@ -183,20 +172,6 @@
                     @enderror
                 </div>
 
-                {{-- Remember me --}}
-                <div class="flex items-center gap-2.5">
-                    <input
-                        type="checkbox"
-                        id="remember"
-                        name="remember"
-                        class="w-4 h-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500/30 focus:ring-2 cursor-pointer"
-                        {{ old('remember') ? 'checked' : '' }}
-                    >
-                    <label for="remember" class="text-sm text-slate-600 cursor-pointer select-none">
-                        Ingat saya di perangkat ini
-                    </label>
-                </div>
-
                 {{-- Submit --}}
                 <button
                     type="submit"
@@ -209,13 +184,6 @@
 
             </form>
 
-            {{-- Register link --}}
-            <p class="text-center text-sm text-slate-500 mt-6">
-                Belum punya akun?
-                <a href="/register" class="font-semibold text-sky-600 hover:text-sky-700 hover:underline transition-colors">
-                    Daftar sekarang
-                </a>
-            </p>
 
         </div>
     </div>
