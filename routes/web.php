@@ -4,24 +4,20 @@ use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 
-// ─── Root redirect ───────────────────────────────────────────────────────────
+// ─── Root redirect ────────────────────────────────────────────────────────────
 Route::get('/', fn() => redirect()->route('dashboard.index'));
 
-// ─── Guest-only routes (redirect to dashboard if already logged in) ──────────
+// ─── Guest-only routes ───────────────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
-    Route::get('/login',    [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login',   [AuthController::class, 'login']);
-    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register',[AuthController::class, 'register']);
+    Route::get('/login',     [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login',    [AuthController::class, 'login']);
+    Route::get('/register',  [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
 });
 
-    Route::put('/ar-data/{id}',     [DashboardController::class, 'updateArData'])->name('updateArData');
-    Route::put('/aging/{id}',       [DashboardController::class, 'updateArData'])->name('updateAging');
-    Route::put('/collection/{id}',  [DashboardController::class, 'updateArData'])->name('updateCollection');
-    Route::put('/customers/{id}',   [DashboardController::class, 'updateArData'])->name('updateCustomers');
-    Route::put('/overlimit/{id}',   [DashboardController::class, 'updateArData'])->name('updateOverlimit');
 // ─── Auth-protected routes ───────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
+
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function () {
@@ -34,9 +30,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/aging-bucket', [DashboardController::class, 'agingBucket']) ->name('agingBucket');
         Route::get('/export',       [DashboardController::class, 'export'])       ->name('export');
 
-        // Admin-only: inline row editing (controller enforces admin check)
+        // Admin-only: inline AR record editing (ar_records.id)
         Route::put('/ar-data/{id}', [DashboardController::class, 'updateArData'])->name('updateArData');
     });
-
-    
 });
