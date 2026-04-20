@@ -2,13 +2,13 @@
 @php
   $isCollectorRole = Auth::user()->isCollector();
   $myCollectorName = $lockedCollector ?? null;
+  // Always use the resolved period id, not just the raw request param
+  $currentPeriodId = isset($period) && $period ? $period->id : request('period_id');
 @endphp
 <form method="GET" action="{{ request()->url() }}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-  {{-- Always preserve period --}}
-  @if(request('period_id'))
-    <input type="hidden" name="period_id" value="{{ request('period_id') }}">
-  @elseif(isset($period) && $period)
-    <input type="hidden" name="period_id" value="{{ $period->id }}">
+  {{-- Always preserve period — use resolved period id so it never resets --}}
+  @if($currentPeriodId)
+    <input type="hidden" name="period_id" value="{{ $currentPeriodId }}">
   @endif
 
   {{-- Plant filter — hidden for collectors --}}
@@ -23,7 +23,6 @@
 
   {{-- Collector filter — locked badge for collectors, dropdown for admin/manager --}}
   @if($isCollectorRole)
-    {{-- Show a locked indicator --}}
     <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
                  background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;
                  font-size:12px;font-weight:600;color:#1e40af">
@@ -41,7 +40,7 @@
 
   {{-- Clear filters — only for admin/manager --}}
   @if(!$isCollectorRole && (request('plant') || request('collector')))
-    <a href="{{ request()->url() }}{{ (isset($period) && $period) ? '?period_id='.$period->id : '' }}"
+    <a href="{{ request()->url() }}{{ $currentPeriodId ? '?period_id='.$currentPeriodId : '' }}"
        class="btn btn-ghost" style="font-size:11px">✕ Clear</a>
   @endif
 </form>

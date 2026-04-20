@@ -4,6 +4,7 @@
 
 @php
   $totalBucket = array_sum($buckets);
+  $isAdmin     = Auth::user()->isAdmin();
 @endphp
 
 @section('topbar-actions')
@@ -56,22 +57,39 @@
 
 {{-- Customer Aging Table --}}
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
-  <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
-    <div style="font-size:12px;font-weight:700">Customer Aging Detail ({{ $rows->count() }} records)</div>
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div style="font-size:12px;font-weight:700">Customer Aging Detail (<span id="aging-count">{{ $rows->count() }}</span> records)</div>
+    <input type="text" id="aging-search" placeholder="Search customer…" oninput="agingTable.search(this.value)"
+      style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
   </div>
   <div class="table-scroll">
-    <table class="data-table">
+    <table class="data-table" id="aging-table">
       <thead><tr>
-        <th>Customer</th><th>Plant</th><th>Collector</th>
-        <th class="num">Current</th><th class="num">1-30d</th>
-        <th class="num">30-60d</th><th class="num">60-90d</th>
-        <th class="num">>90d</th><th class="num">Total</th><th>Aging Bar</th>
-        <th style="width:60px;text-align:center">Edit</th>
+        <th class="sortable" style="white-space:nowrap">Invoice ID <span class="sort-icon">↕</span></th>
+        <th class="sortable" style="white-space:nowrap">Customer <span class="sort-icon">↕</span></th>
+        <th class="sortable" style="white-space:nowrap">Plant <span class="sort-icon">↕</span></th>
+        <th class="sortable" style="white-space:nowrap">Collector <span class="sort-icon">↕</span></th>
+        <th class="num sortable" style="white-space:nowrap">Current <span class="sort-icon">↕</span></th>
+        <th class="num sortable" style="white-space:nowrap">1-30d <span class="sort-icon">↕</span></th>
+        <th class="num sortable" style="white-space:nowrap">30-60d <span class="sort-icon">↕</span></th>
+        <th class="num sortable" style="white-space:nowrap">60-90d <span class="sort-icon">↕</span></th>
+        <th class="num sortable" style="white-space:nowrap">&gt;90d <span class="sort-icon">↕</span></th>
+        <th class="num sortable" style="white-space:nowrap">Total <span class="sort-icon">↕</span></th>
+        <th>Aging Bar</th>
+        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
       </tr></thead>
-      <tbody>
+      <tbody id="aging-tbody">
       @foreach($rows as $r)
       @php $hasOverdue = ($r->days_60_90 + $r->days_over_90) > 0; @endphp
-      <tr style="{{ $hasOverdue ? 'background:#fff5f5' : '' }}">
+      <tr style="{{ $hasOverdue ? 'background:#fff5f5' : '' }}"
+          data-search="{{ strtolower($r->customer_name . ' ' . $r->customer_id . ' ' . $r->collection_by) }}"
+          data-raw-current="{{ intval($r->current) }}"
+          data-raw130="{{ intval($r->days_1_30) }}"
+          data-raw3060="{{ intval($r->days_30_60) }}"
+          data-raw6090="{{ intval($r->days_60_90) }}"
+          data-rawover90="{{ intval($r->days_over_90) }}"
+          data-rawtotal="{{ intval($r->total) }}">
+        <td style="font-weight:700;white-space:nowrap">{{ $r->invoice_id ?? $r->id }}</td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="{{ $r->customer_name }}">{{ $r->customer_name }}</td>
         <td><span class="badge badge-blue">{{ $r->plant }}</span></td>
         <td style="font-size:11px">{{ $r->collection_by }}</td>
@@ -90,14 +108,48 @@
             <div style="flex:{{ $r->days_over_90 }};background:#dc2626"></div>
           </div>
         </td>
+        @if($isAdmin)
         <td style="text-align:center">
           <button class="btn btn-warning btn-sm" onclick='openEditModal(@json((array)$r))'>✏️</button>
         </td>
+        @endif
       </tr>
       @endforeach
       </tbody>
     </table>
   </div>
+  <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <span style="font-size:12px;color:var(--muted)" id="aging-page-info"></span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button id="aging-prev" onclick="agingTable.prevPage()"
+        style="padding:5px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;font-size:12px;font-weight:600">‹ Prev</button>
+      <div id="aging-page-btns" style="display:flex;gap:4px"></div>
+      <button id="aging-next" onclick="agingTable.nextPage()"
+        style="padding:5px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;font-size:12px;font-weight:600">Next ›</button>
+    </div>
+  </div>
 </div>
 
+@include('partials.table-manager-styles')
+<script>
+// rawAttrMap: colIndex → dataset key (camelCase of data-* attribute)
+// data-raw-current → dataset.rawCurrent, data-raw130 → dataset.raw130, etc.
+const agingTable = makeTableManager(
+  'aging-tbody', 'aging-table',
+  'aging-count', 'aging-page-info', 'aging-page-btns', 'aging-prev', 'aging-next',
+  10,
+  {
+    0: null,           // Invoice ID — text
+    1: null,           // Customer  — text
+    2: null,           // Plant     — text
+    3: null,           // Collector — text
+    4: 'rawCurrent',   // Current
+    5: 'raw130',       // 1-30d
+    6: 'raw3060',      // 30-60d
+    7: 'raw6090',      // 60-90d
+    8: 'rawover90',    // >90d
+    9: 'rawtotal',     // Total
+  }
+);
+</script>
 @endsection
