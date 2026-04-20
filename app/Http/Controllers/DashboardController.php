@@ -491,10 +491,7 @@ class DashboardController extends Controller
 
     public function updateArData(Request $request, int $id)
     {
-        if (!Auth::user()?->isAdmin()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
+ 
         $data = $request->validate([
             'amount_current'      => 'sometimes|numeric|min:0',
             'amount_1_30_days'    => 'sometimes|numeric|min:0',
@@ -508,18 +505,19 @@ class DashboardController extends Controller
             'so_with_od'          => 'sometimes|integer|min:0',
             'total_so'            => 'sometimes|integer|min:0',
         ]);
-
+ 
         $record   = ArRecord::findOrFail($id);
         $soFields = array_intersect_key($data, array_flip(['so_without_od','so_with_od','total_so']));
         $arFields = array_diff_key($data, $soFields);
-
+ 
         if ($arFields) $record->update($arFields);
         if ($soFields) {
             SoOverlimit::where('invoice_id', $record->invoice_id)
                 ->where('period_id', $record->period_id)
                 ->update($soFields);
         }
-
+ 
         return response()->json(['success' => true, 'row' => $record->fresh()]);
     }
+ 
 }

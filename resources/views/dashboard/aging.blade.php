@@ -4,7 +4,6 @@
 
 @php
   $totalBucket = array_sum($buckets);
-  $isAdmin     = Auth::user()->isAdmin();
 @endphp
 
 @section('topbar-actions')
@@ -67,7 +66,7 @@
         <th class="num">Current</th><th class="num">1-30d</th>
         <th class="num">30-60d</th><th class="num">60-90d</th>
         <th class="num">>90d</th><th class="num">Total</th><th>Aging Bar</th>
-        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
+        <th style="width:60px;text-align:center">Edit</th>
       </tr></thead>
       <tbody>
       @foreach($rows as $r)
@@ -91,11 +90,9 @@
             <div style="flex:{{ $r->days_over_90 }};background:#dc2626"></div>
           </div>
         </td>
-        @if($isAdmin)
         <td style="text-align:center">
           <button class="btn btn-warning btn-sm" onclick='openEditModal(@json((array)$r))'>✏️</button>
         </td>
-        @endif
       </tr>
       @endforeach
       </tbody>

@@ -169,7 +169,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
     <a href="{{ route('dashboard.overlimit') }}"  class="nav-item {{ request()->routeIs('dashboard.overlimit')  ? 'active':'' }}">⚠️ SO Overlimit</a>
     <a href="{{ route('dashboard.customers') }}"  class="nav-item {{ request()->routeIs('dashboard.customers')  ? 'active':'' }}">👥 Customers</a>
 
-    {{-- History: admin & manager only --}}
     @if(Auth::user()->isAdmin())
     <div class="nav-divider"></div>
     <a href="{{ route('dashboard.history') }}" class="nav-item {{ request()->routeIs('dashboard.history') ? 'active':'' }}">
@@ -216,7 +215,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
     <div style="font-size:14px;font-weight:700;flex-shrink:0">@yield('page-title','Dashboard Overview')</div>
 
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;flex:1">
-      {{-- Period Selector --}}
       @if(isset($periods) && $periods->count())
       <form method="GET" action="{{ request()->url() }}" id="period-form" style="display:flex;align-items:center;gap:6px">
         @if(request('plant'))    <input type="hidden" name="plant"     value="{{ request('plant') }}">@endif
@@ -247,8 +245,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
   <div style="padding:20px">@yield('content')</div>
 </div>
 
-{{-- ── Admin Edit Modal ── --}}
-@if(Auth::user()->isAdmin())
+{{-- ── Edit Modal — available to ALL roles ── --}}
 <div id="edit-modal-overlay" onclick="if(event.target===this) closeEditModal()"
      style="display:none;position:fixed;inset:0;background:rgba(15,31,54,.5);z-index:300;
             align-items:center;justify-content:center;backdrop-filter:blur(3px)">
@@ -309,7 +306,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
     </form>
   </div>
 </div>
-@endif
 
 @stack('scripts')
 <script>
@@ -317,7 +313,7 @@ function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebar-overlay').classList.toggle('open');
 }
-@if(Auth::user()->isAdmin())
+
 function openEditModal(rowData){
   document.getElementById('edit-row-id').value = rowData.id;
   document.getElementById('edit-customer-name').textContent = rowData.customer_name;
@@ -350,9 +346,11 @@ function openEditModal(rowData){
   box.style.transform   = 'translateY(-14px)';
   requestAnimationFrame(()=>{ box.style.opacity='1'; box.style.transform='translateY(0)'; });
 }
+
 function closeEditModal(){
   document.getElementById('edit-modal-overlay').style.display = 'none';
 }
+
 async function submitEditModal(e){
   e.preventDefault();
   const id    = document.getElementById('edit-row-id').value;
@@ -379,8 +377,8 @@ async function submitEditModal(e){
     errEl.textContent='⚠️ '+err.message; errEl.style.display='block';
   } finally { btn.disabled=false; lbl.textContent='Save Changes'; }
 }
+
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeEditModal(); });
-@endif
 </script>
 </body>
 </html>

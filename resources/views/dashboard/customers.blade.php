@@ -2,7 +2,10 @@
 @section('title','Customers')
 @section('page-title','Customers')
 
-@php $isAdmin = Auth::user()->isAdmin(); @endphp
+@php
+  $isAdmin = true; 
+@endphp
+
 
 @section('topbar-actions')
   <form method="GET" action="{{ route('dashboard.customers') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">

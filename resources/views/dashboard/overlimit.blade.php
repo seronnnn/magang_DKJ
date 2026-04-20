@@ -2,7 +2,10 @@
 @section('title','SO Overlimit')
 @section('page-title','SO Overlimit')
 
-@php $isAdmin = Auth::user()->isAdmin(); @endphp
+@php
+  $isAdmin = true; 
+@endphp
+
 
 @section('topbar-actions')
   @include('partials.filters')

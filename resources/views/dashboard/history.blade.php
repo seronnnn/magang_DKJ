@@ -3,7 +3,6 @@
 @section('page-title','Collection History')
 
 @section('topbar-actions')
-{{-- Year & Collector selectors for history page --}}
 <form method="GET" action="{{ route('dashboard.history') }}" id="history-form"
       style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
 
@@ -25,14 +24,16 @@
   </select>
 
   @if($selectedCollector !== '')
-    <a href="{{ route('dashboard.history') }}?year={{ $selectedYear }}" class="btn btn-ghost" style="font-size:11px">✕ Clear</a>
+    <a href="{{ route('dashboard.history') }}?year={{ $selectedYear }}" class="btn btn-ghost" style="font-size:11px">Search</a>
   @endif
 </form>
 @endsection
 
+{{-- Override $periods to empty so the global topbar period dropdown does NOT render on this page --}}
+@php $periods = collect(); @endphp
+
 @section('content')
 
-{{-- Full-year Summary KPIs --}}
 @php
   $totalTarget = $summary->sum('total_target');
   $totalActual = $summary->sum('total_actual');
@@ -40,6 +41,7 @@
   $overallRate = $totalTarget > 0 ? round($totalActual / $totalTarget * 100, 1) : null;
 @endphp
 
+{{-- KPIs --}}
 <div class="grid-kpi-4" style="margin-bottom:20px">
   <div class="kpi-card card-accent-blue">
     <div class="kpi-label">Total AR ({{ $selectedYear }})</div>
@@ -77,7 +79,7 @@
   </div>
 </div>
 
-{{-- Per-Collector Summary Table --}}
+{{-- Full-Year Summary Table --}}
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px">
   <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:12px;font-weight:700">
@@ -98,19 +100,17 @@
       <tbody>
       @forelse($summary as $row)
         @php
-          $rate      = $row->rate;
-          $barColor  = $rate === null ? '#94a3b8' : ($rate >= 100 ? '#16a34a' : ($rate >= 70 ? '#d97706' : '#dc2626'));
-          $badgeCls  = $rate === null ? 'badge-gray' : ($rate >= 100 ? 'badge-green' : ($rate >= 70 ? 'badge-yellow' : 'badge-red'));
-          $pct       = min($rate ?? 0, 100);
+          $rate     = $row->rate;
+          $barColor = $rate === null ? '#94a3b8' : ($rate >= 100 ? '#16a34a' : ($rate >= 70 ? '#d97706' : '#dc2626'));
+          $badgeCls = $rate === null ? 'badge-gray' : ($rate >= 100 ? 'badge-green' : ($rate >= 70 ? 'badge-yellow' : 'badge-red'));
+          $pct      = min($rate ?? 0, 100);
         @endphp
         <tr>
           <td style="font-weight:700">{{ $row->collector }}</td>
           <td class="num">{{ fmtIDR($row->total_ar) }}</td>
           <td class="num">{{ $row->total_target > 0 ? fmtIDR($row->total_target) : '—' }}</td>
           <td class="num" style="color:#16a34a;font-weight:600">{{ $row->total_actual > 0 ? fmtIDR($row->total_actual) : '—' }}</td>
-          <td class="num">
-            <span class="badge {{ $badgeCls }}">{{ $rate !== null ? $rate.'%' : 'N/A' }}</span>
-          </td>
+          <td class="num"><span class="badge {{ $badgeCls }}">{{ $rate !== null ? $rate.'%' : 'N/A' }}</span></td>
           <td>
             <div style="display:flex;align-items:center;gap:8px">
               <div class="progress-bg" style="flex:1">
@@ -132,7 +132,7 @@
   </div>
 </div>
 
-{{-- Monthly breakdown table --}}
+{{-- Monthly Breakdown Table --}}
 @if($summary->count() > 0)
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
   <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
@@ -180,7 +180,6 @@
 const periodLabels = @json($periodLabels);
 const datasets     = @json($datasets);
 
-// Convert borderDash: [] → undefined for Chart.js
 const chartDatasets = datasets.map(ds => ({
   ...ds,
   borderDash: ds.borderDash && ds.borderDash.length > 0 ? ds.borderDash : undefined,
@@ -188,40 +187,24 @@ const chartDatasets = datasets.map(ds => ({
 
 new Chart(document.getElementById('historyChart'), {
   type: 'line',
-  data: {
-    labels:   periodLabels,
-    datasets: chartDatasets,
-  },
+  data: { labels: periodLabels, datasets: chartDatasets },
   options: {
-    responsive:          true,
+    responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: {
-        position: 'top',
-        labels:   { font:{ size:11 }, boxWidth:12, padding:16 },
-      },
+      legend: { position:'top', labels:{ font:{ size:11 }, boxWidth:12, padding:16 } },
       tooltip: {
         callbacks: {
-          label: ctx => {
-            const v = ctx.parsed.y;
-            return ` ${ctx.dataset.label}: Rp ${v.toFixed(2)}B`;
-          },
+          label: ctx => ` ${ctx.dataset.label}: Rp ${ctx.parsed.y.toFixed(2)}B`,
         },
       },
     },
     scales: {
-      x: {
-        grid:  { color:'rgba(0,0,0,.04)' },
-        ticks: { font:{ size:11 }, color:'#4a6080' },
-      },
+      x: { grid:{ color:'rgba(0,0,0,.04)' }, ticks:{ font:{ size:11 }, color:'#4a6080' } },
       y: {
-        grid:  { color:'rgba(0,0,0,.04)' },
-        ticks: {
-          font:     { size:10 },
-          color:    '#4a6080',
-          callback: v => 'Rp '+v.toFixed(1)+'B',
-        },
+        grid: { color:'rgba(0,0,0,.04)' },
+        ticks: { font:{ size:10 }, color:'#4a6080', callback: v => 'Rp '+v.toFixed(1)+'B' },
         title: { display:true, text:'IDR (Billion)', font:{ size:11 }, color:'#4a6080' },
       },
     },
