@@ -6,25 +6,25 @@
 <form method="GET" action="{{ route('dashboard.history') }}" id="history-form"
       style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
 
-  {{-- Year selector --}}
-  <select name="year" class="filter-input" style="font-size:11px;padding:5px 10px"
-          onchange="document.getElementById('history-form').submit()">
+  {{-- Year selector — no auto-submit --}}
+  <select name="year" class="filter-input" style="font-size:11px;padding:5px 10px">
     @foreach($availableYears as $yr)
       <option value="{{ $yr }}" {{ $selectedYear == $yr ? 'selected' : '' }}>{{ $yr }}</option>
     @endforeach
   </select>
 
-  {{-- Collector selector --}}
-  <select name="collector" class="filter-input" style="font-size:11px;padding:5px 10px"
-          onchange="document.getElementById('history-form').submit()">
+  {{-- Collector selector — no auto-submit --}}
+  <select name="collector" class="filter-input" style="font-size:11px;padding:5px 10px">
     <option value="">All Collectors</option>
     @foreach($collectors as $c)
       <option value="{{ $c }}" {{ $selectedCollector == $c ? 'selected' : '' }}>{{ $c }}</option>
     @endforeach
   </select>
 
-  @if($selectedCollector !== '')
-    <a href="{{ route('dashboard.history') }}?year={{ $selectedYear }}" class="btn btn-ghost" style="font-size:11px">Search</a>
+  <button type="submit" class="btn btn-primary" style="font-size:11px;padding:6px 14px">Search</button>
+
+  @if($selectedCollector !== '' || $selectedYear != date('Y'))
+    <a href="{{ route('dashboard.history') }}" class="btn btn-ghost" style="font-size:11px">Clear</a>
   @endif
 </form>
 @endsection

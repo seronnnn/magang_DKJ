@@ -20,10 +20,28 @@ class DashboardController extends Controller
 
     private function resolvePeriod(Request $request): ?ArPeriod
     {
+        // If an explicit period_id is in the request, save it to session
         if ($request->filled('period_id')) {
-            return ArPeriod::find($request->period_id);
+            $period = ArPeriod::find($request->period_id);
+            if ($period) {
+                session(['dashboard_period_id' => $period->id]);
+                return $period;
+            }
         }
-        return ArPeriod::orderByDesc('period_month')->first();
+
+        // Try to restore from session
+        $sessionPeriodId = session('dashboard_period_id');
+        if ($sessionPeriodId) {
+            $period = ArPeriod::find($sessionPeriodId);
+            if ($period) return $period;
+        }
+
+        // Fall back to the most recent period
+        $latest = ArPeriod::orderByDesc('period_month')->first();
+        if ($latest) {
+            session(['dashboard_period_id' => $latest->id]);
+        }
+        return $latest;
     }
 
     /**
@@ -491,7 +509,6 @@ class DashboardController extends Controller
 
     public function updateArData(Request $request, int $id)
     {
- 
         $data = $request->validate([
             'amount_current'      => 'sometimes|numeric|min:0',
             'amount_1_30_days'    => 'sometimes|numeric|min:0',
@@ -505,19 +522,18 @@ class DashboardController extends Controller
             'so_with_od'          => 'sometimes|integer|min:0',
             'total_so'            => 'sometimes|integer|min:0',
         ]);
- 
+
         $record   = ArRecord::findOrFail($id);
         $soFields = array_intersect_key($data, array_flip(['so_without_od','so_with_od','total_so']));
         $arFields = array_diff_key($data, $soFields);
- 
+
         if ($arFields) $record->update($arFields);
         if ($soFields) {
             SoOverlimit::where('invoice_id', $record->invoice_id)
                 ->where('period_id', $record->period_id)
                 ->update($soFields);
         }
- 
+
         return response()->json(['success' => true, 'row' => $record->fresh()]);
     }
- 
 }

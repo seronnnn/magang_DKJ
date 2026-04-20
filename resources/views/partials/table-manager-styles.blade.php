@@ -3,12 +3,11 @@
 .sortable { cursor:pointer; user-select:none; }
 .sortable:hover { background:#f0f6ff !important; }
 .sort-icon { font-size:10px; color:#94a3b8; margin-left:4px; }
-.th-sort-asc  .sort-icon::after { content:'↑'; color:var(--navy); font-size:11px; }
-.th-sort-desc .sort-icon::after { content:'↓'; color:var(--navy); font-size:11px; }
-.th-sort-asc  .sort-icon,
-.th-sort-desc .sort-icon { visibility:hidden; }
-.th-sort-asc  .sort-icon::after,
-.th-sort-desc .sort-icon::after { visibility:visible; }
+.th-sort-asc  .sort-icon { color:var(--navy); }
+.th-sort-asc  .sort-icon::before { content:'↑'; }
+.th-sort-desc .sort-icon { color:var(--navy); }
+.th-sort-desc .sort-icon::before { content:'↓'; }
+.th-sort-none .sort-icon::before { content:'↕'; }
 .page-btn-num {
   padding:4px 10px;
   border:1px solid var(--border);
@@ -98,18 +97,44 @@ function makeTableManager(tbodyId, tableId, countId, pageInfoId, pageBtnsId, pre
     }
   }
 
-  // ── Numeric value from dataset (raw PHP value, always accurate) ───────────
+  // ── Get raw numeric value from dataset ────────────────────────────────────
+  // dataset keys are camelCase versions of data-* attributes.
+  // e.g. data-raw-current → dataset.rawCurrent
+  // e.g. data-raw130      → dataset.raw130
+  // We accept whatever key string is passed and try it directly on dataset.
   function getRawValue(row, colIndex) {
     const key = rawAttrMap[colIndex];
     if (!key) return null;
+    // dataset property access: browser auto-camelCases data-foo-bar → dataset.fooBar
+    // but data-raw130 → dataset.raw130 (no hyphen, no conversion needed)
     const v = row.dataset[key];
-    return v !== undefined ? parseFloat(v) || 0 : null;
+    if (v === undefined) return null;
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
   }
 
   // ── Text value from cell for text-sort ───────────────────────────────────
   function getCellText(row, colIndex) {
     const cells = row.querySelectorAll('td');
     return cells[colIndex] ? cells[colIndex].textContent.trim() : '';
+  }
+
+  // ── Update sort header indicators ─────────────────────────────────────────
+  function updateHeaders() {
+    if (!table) return;
+    table.querySelectorAll('th.sortable').forEach((th, i) => {
+      th.classList.remove('th-sort-asc', 'th-sort-desc', 'th-sort-none');
+      if (i === sortCol) {
+        th.classList.add(sortDir === 1 ? 'th-sort-asc' : 'th-sort-desc');
+        // Replace the icon span content
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = '';
+      } else {
+        th.classList.add('th-sort-none');
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = '↕';
+      }
+    });
   }
 
   // ── Sort ──────────────────────────────────────────────────────────────────
@@ -123,15 +148,7 @@ function makeTableManager(tbodyId, tableId, countId, pageInfoId, pageBtnsId, pre
       }
     }
 
-    // Update header classes
-    if (table) {
-      table.querySelectorAll('th.sortable').forEach((th, i) => {
-        th.classList.remove('th-sort-asc', 'th-sort-desc');
-        if (i === sortCol) {
-          th.classList.add(sortDir === 1 ? 'th-sort-asc' : 'th-sort-desc');
-        }
-      });
-    }
+    updateHeaders();
 
     filtered.sort((a, b) => {
       const ra = getRawValue(a, sortCol);
@@ -142,11 +159,16 @@ function makeTableManager(tbodyId, tableId, countId, pageInfoId, pageBtnsId, pre
         return (ra - rb) * sortDir;
       }
 
-      // Text sort
+      // Fall back to text sort
       const ta = getCellText(a, sortCol);
       const tb = getCellText(b, sortCol);
       return ta.localeCompare(tb, undefined, { numeric: true, sensitivity: 'base' }) * sortDir;
     });
+
+    // Re-append rows in new order so DOM reflects sort
+    filtered.forEach(r => tbody.appendChild(r));
+    // Also make sure hidden (non-filtered) rows are still in tbody
+    allRows.filter(r => !filtered.includes(r)).forEach(r => tbody.appendChild(r));
 
     currentPage = 1;
     render();
@@ -166,6 +188,7 @@ function makeTableManager(tbodyId, tableId, countId, pageInfoId, pageBtnsId, pre
   // ── Bind header clicks ────────────────────────────────────────────────────
   if (table) {
     table.querySelectorAll('th.sortable').forEach((th, i) => {
+      th.classList.add('th-sort-none');
       th.addEventListener('click', () => doSort(i, true));
     });
   }

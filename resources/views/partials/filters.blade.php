@@ -2,11 +2,11 @@
 @php
   $isCollectorRole = Auth::user()->isCollector();
   $myCollectorName = $lockedCollector ?? null;
-  // Always use the resolved period id, not just the raw request param
+  // Always use the resolved period id from the controller, not the raw request param
   $currentPeriodId = isset($period) && $period ? $period->id : request('period_id');
 @endphp
 <form method="GET" action="{{ request()->url() }}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-  {{-- Always preserve period — use resolved period id so it never resets --}}
+  {{-- Always preserve period --}}
   @if($currentPeriodId)
     <input type="hidden" name="period_id" value="{{ $currentPeriodId }}">
   @endif
