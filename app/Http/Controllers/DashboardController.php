@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ArPeriod;
 use App\Models\ArRecord;
 use App\Models\Collector;
+use App\Models\Customer;
 use App\Models\Plant;
 use App\Models\SoOverlimit;
 use App\Models\CollectionLog;
@@ -20,7 +21,6 @@ class DashboardController extends Controller
 
     private function resolvePeriod(Request $request): ?ArPeriod
     {
-        // If an explicit period_id is in the request, save it to session
         if ($request->filled('period_id')) {
             $period = ArPeriod::find($request->period_id);
             if ($period) {
@@ -29,14 +29,12 @@ class DashboardController extends Controller
             }
         }
 
-        // Try to restore from session
         $sessionPeriodId = session('dashboard_period_id');
         if ($sessionPeriodId) {
             $period = ArPeriod::find($sessionPeriodId);
             if ($period) return $period;
         }
 
-        // Fall back to the most recent period
         $latest = ArPeriod::orderByDesc('period_month')->first();
         if ($latest) {
             session(['dashboard_period_id' => $latest->id]);
@@ -44,10 +42,6 @@ class DashboardController extends Controller
         return $latest;
     }
 
-    /**
-     * If the logged-in user has role=collector, return their collector name.
-     * Admin/manager returns null (no lock).
-     */
     private function lockedCollector(): ?string
     {
         $user = Auth::user();
@@ -58,10 +52,6 @@ class DashboardController extends Controller
         return null;
     }
 
-    /**
-     * Base flat query — always respects collector-role lock.
-     * Admin/manager can further filter via ?plant= and ?collector=.
-     */
     private function baseQuery(Request $request, ?ArPeriod $period = null)
     {
         $period = $period ?? $this->resolvePeriod($request);
@@ -103,14 +93,12 @@ class DashboardController extends Controller
             $q->where('r.period_id', $period->id);
         }
 
-        // Collector lock (role=collector) overrides any filter
         if ($locked) {
             $q->where('col.name', $locked);
         } elseif ($request->filled('collector')) {
             $q->where('col.name', $request->collector);
         }
 
-        // Plant filter only available to admin/manager
         if (!$locked && $request->filled('plant')) {
             $q->where('p.code', $request->plant);
         }
@@ -305,6 +293,58 @@ class DashboardController extends Controller
     }
 
     /* ────────────────────────────────────────────────────────────
+     * Customer Detail AJAX
+     * ──────────────────────────────────────────────────────────── */
+
+    public function customerDetail(Request $request, string $customerId)
+    {
+        $customer = DB::table('customers as c')
+            ->join('collectors as col', 'col.id', '=', 'c.collector_id')
+            ->where('c.customer_id', $customerId)
+            ->select('c.*', 'col.name as collector_name')
+            ->first();
+
+        if (!$customer) {
+            return response()->json(['error' => 'Customer not found'], 404);
+        }
+
+        $plants = DB::table('plants')
+            ->where('customer_id', $customer->id)
+            ->pluck('code')
+            ->toArray();
+
+        $invoices = DB::table('ar_records as r')
+            ->join('invoice as inv',   'inv.id', '=', 'r.invoice_id')
+            ->join('ar_periods as ap', 'ap.id',  '=', 'r.period_id')
+            ->where('inv.customer_id', $customer->id)
+            ->select([
+                'r.id',
+                'r.invoice_id',
+                'ap.period_label',
+                'ap.period_month',
+                'inv.due_date',
+                'inv.baseline_date',
+                'inv.currency_type',
+                'r.amount_current      as current',
+                'r.amount_1_30_days    as days_1_30',
+                'r.amount_30_60_days   as days_30_60',
+                'r.amount_60_90_days   as days_60_90',
+                'r.amount_over_90_days as days_over_90',
+                'r.total_ar            as total',
+                'r.ar_target',
+                'r.ar_actual',
+            ])
+            ->orderByDesc('ap.period_month')
+            ->get();
+
+        return response()->json([
+            'customer' => $customer,
+            'plants'   => $plants,
+            'invoices' => $invoices,
+        ]);
+    }
+
+    /* ────────────────────────────────────────────────────────────
      * History — admin & manager only
      * ──────────────────────────────────────────────────────────── */
 
@@ -314,36 +354,98 @@ class DashboardController extends Controller
             abort(403, 'Access denied.');
         }
 
-        $selectedCollector = $request->input('collector', '');
+        // Cast to string so downstream methods never receive null
+        $selectedCollector = (string) ($request->input('collector') ?? '');
         $selectedYear      = (int) $request->input('year', date('Y'));
+        $compareMode       = $request->boolean('compare');
+        $compareYear       = (int) $request->input('compare_year', $selectedYear - 1);
 
         $availableYears = ArPeriod::selectRaw('YEAR(period_month) as yr')
             ->distinct()->orderByDesc('yr')->pluck('yr');
 
-        $periods = ArPeriod::whereYear('period_month', $selectedYear)
+        $collectorNames = Collector::orderBy('name')->pluck('name')->toArray();
+
+        // Primary year datasets
+        $primaryData   = $this->buildHistoryDatasets($selectedYear, $selectedCollector, $collectorNames);
+        $periodLabels  = $primaryData['labels'];
+        $chartDatasets = $primaryData['datasets'];
+
+        // Compare year datasets (if enabled)
+        if ($compareMode) {
+            $compareData = $this->buildHistoryDatasets($compareYear, $selectedCollector, $collectorNames, true);
+            if (empty($periodLabels) && !empty($compareData['labels'])) {
+                $periodLabels = $compareData['labels'];
+            }
+            $chartDatasets = array_merge($chartDatasets, $compareData['datasets']);
+        }
+
+        $summary        = $this->buildHistorySummary($selectedYear, $selectedCollector);
+        $compareSummary = $compareMode
+            ? $this->buildHistorySummary($compareYear, $selectedCollector)
+            : collect();
+
+        return view('dashboard.history', [
+            'periodLabels'      => $periodLabels,
+            'datasets'          => $chartDatasets,
+            'summary'           => $summary,
+            'compareSummary'    => $compareSummary,
+            'collectors'        => $this->collectors(),
+            'selectedCollector' => $selectedCollector,
+            'availableYears'    => $availableYears,
+            'selectedYear'      => $selectedYear,
+            'compareMode'       => $compareMode,
+            'compareYear'       => $compareYear,
+            'periods'           => $this->periods(),
+        ]);
+    }
+
+    /**
+     * Build Chart.js line datasets for a single year.
+     *
+     * '' (empty string)  → aggregate ALL collectors into one "All Collectors" line
+     * 'Miya' (non-empty) → show only that collector's line
+     *
+     * $isCompare = true uses a different colour palette so the two years are visually distinct.
+     */
+    private function buildHistoryDatasets(
+        int     $year,
+        string  $selectedCollector,   // always a string; '' means "all"
+        array   $collectorNames,
+        bool    $isCompare = false
+    ): array {
+        $periods = ArPeriod::whereYear('period_month', $year)
             ->orderBy('period_month')->get();
 
-        $periodLabels    = $periods->pluck('period_label')->toArray();
-        $collectorNames  = Collector::orderBy('name')->pluck('name')->toArray();
-        $activeCollectors = $selectedCollector !== '' ? [$selectedCollector] : $collectorNames;
+        $labels = $periods->pluck('period_label')->toArray();
 
-        // Fetch monthly actual/target for each active collector
-        $palette = ['#1B3A6B','#7c3aed','#16a34a','#d97706','#dc2626','#1e88e5'];
+        $palette       = ['#1B3A6B', '#7c3aed', '#16a34a', '#d97706', '#dc2626', '#1e88e5'];
+        $compareColors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#38bdf8'];
+
         $datasets = [];
 
-        foreach ($activeCollectors as $i => $name) {
-            $monthly = DB::table('ar_records as r')
-                ->join('invoice as inv',    'inv.id',  '=', 'r.invoice_id')
-                ->join('customers as c',    'c.id',    '=', 'inv.customer_id')
-                ->join('collectors as col', 'col.id',  '=', 'c.collector_id')
-                ->where('col.name', $name)
+        // '' = show one combined "All Collectors" line; specific name = one line
+        $items = $selectedCollector !== ''
+            ? [['label' => $selectedCollector, 'filterBy' => $selectedCollector]]
+            : [['label' => 'All Collectors',   'filterBy' => null]];
+
+        foreach ($items as $i => $item) {
+            $q = DB::table('ar_records as r')
+                ->join('invoice as inv',    'inv.id', '=', 'r.invoice_id')
+                ->join('customers as c',    'c.id',   '=', 'inv.customer_id')
+                ->join('collectors as col', 'col.id', '=', 'c.collector_id')
                 ->whereIn('r.period_id', $periods->pluck('id'))
-                ->select('r.period_id',
+                ->select(
+                    'r.period_id',
                     DB::raw('SUM(r.ar_actual) as actual'),
-                    DB::raw('SUM(r.ar_target) as target'))
-                ->groupBy('r.period_id')
-                ->get()
-                ->keyBy('period_id');
+                    DB::raw('SUM(r.ar_target) as target')
+                )
+                ->groupBy('r.period_id');
+
+            if ($item['filterBy'] !== null) {
+                $q->where('col.name', $item['filterBy']);
+            }
+
+            $monthly = $q->get()->keyBy('period_id');
 
             $actualPoints = [];
             $targetPoints = [];
@@ -353,12 +455,16 @@ class DashboardController extends Controller
                 $targetPoints[] = $row ? round((float) $row->target / 1e9, 3) : 0;
             }
 
-            $color      = $palette[$i % count($palette)];
+            $color     = $isCompare
+                ? ($compareColors[$i % count($compareColors)])
+                : ($palette[$i % count($palette)]);
+            $yearLabel = " ({$year})";
+
             $datasets[] = [
-                'label'           => $name.' (Actual)',
+                'label'           => $item['label'] . ' (Actual)' . $yearLabel,
                 'data'            => $actualPoints,
                 'borderColor'     => $color,
-                'backgroundColor' => $color.'22',
+                'backgroundColor' => $color . '22',
                 'tension'         => 0.4,
                 'fill'            => false,
                 'pointRadius'     => 4,
@@ -366,7 +472,7 @@ class DashboardController extends Controller
                 'borderDash'      => [],
             ];
             $datasets[] = [
-                'label'           => $name.' (Target)',
+                'label'           => $item['label'] . ' (Target)' . $yearLabel,
                 'data'            => $targetPoints,
                 'borderColor'     => $color,
                 'backgroundColor' => 'transparent',
@@ -378,40 +484,39 @@ class DashboardController extends Controller
             ];
         }
 
-        // Full-year summary table
-        $summaryQ = DB::table('ar_records as r')
-            ->join('invoice as inv',    'inv.id',  '=', 'r.invoice_id')
-            ->join('customers as c',    'c.id',    '=', 'inv.customer_id')
-            ->join('collectors as col', 'col.id',  '=', 'c.collector_id')
-            ->join('ar_periods as ap',  'ap.id',   '=', 'r.period_id')
-            ->whereYear('ap.period_month', $selectedYear)
-            ->select('col.name as collector',
+        return ['labels' => $labels, 'datasets' => $datasets];
+    }
+
+    /**
+     * Build full-year summary rows for the table below the chart.
+     * '' = all collectors; specific name = filtered.
+     */
+    private function buildHistorySummary(int $year, string $selectedCollector): \Illuminate\Support\Collection
+    {
+        $q = DB::table('ar_records as r')
+            ->join('invoice as inv',    'inv.id', '=', 'r.invoice_id')
+            ->join('customers as c',    'c.id',   '=', 'inv.customer_id')
+            ->join('collectors as col', 'col.id', '=', 'c.collector_id')
+            ->join('ar_periods as ap',  'ap.id',  '=', 'r.period_id')
+            ->whereYear('ap.period_month', $year)
+            ->select(
+                'col.name as collector',
                 DB::raw('SUM(r.ar_target) as total_target'),
                 DB::raw('SUM(r.ar_actual) as total_actual'),
-                DB::raw('SUM(r.total_ar)  as total_ar'))
+                DB::raw('SUM(r.total_ar)  as total_ar')
+            )
             ->groupBy('col.name')
             ->orderBy('col.name');
 
         if ($selectedCollector !== '') {
-            $summaryQ->where('col.name', $selectedCollector);
+            $q->where('col.name', $selectedCollector);
         }
 
-        $summary = $summaryQ->get()->map(function ($r) {
+        return $q->get()->map(function ($r) {
             $r->rate = $r->total_target > 0
                 ? round($r->total_actual / $r->total_target * 100, 1) : null;
             return $r;
         });
-
-        return view('dashboard.history', [
-            'periodLabels'      => $periodLabels,
-            'datasets'          => $datasets,
-            'summary'           => $summary,
-            'collectors'        => $this->collectors(),
-            'selectedCollector' => $selectedCollector,
-            'availableYears'    => $availableYears,
-            'selectedYear'      => $selectedYear,
-            'periods'           => $this->periods(),
-        ]);
     }
 
     /* ────────────────────────────────────────────────────────────
@@ -456,20 +561,18 @@ class DashboardController extends Controller
         $cols    = ['customer_id','customer_name','collection_by','plant',
                     'current','days_1_30','days_30_60','days_60_90','days_over_90',
                     'total','ar_target','ar_actual','so_without_od','so_with_od','total_so'];
-        $headers = ['Content-Type'=>'text/csv','Content-Disposition'=>'attachment; filename="ar_dashboard.csv"'];
+        $headers = ['Content-Type' => 'text/csv', 'Content-Disposition' => 'attachment; filename="ar_dashboard.csv"'];
         $cb = function () use ($rows, $cols) {
-            $f = fopen('php://output','w');
+            $f = fopen('php://output', 'w');
             fputcsv($f, $cols);
-            foreach ($rows as $r) { fputcsv($f, array_map(fn($c) => $r->$c ?? '', $cols)); }
+            foreach ($rows as $r) {
+                fputcsv($f, array_map(fn($c) => $r->$c ?? '', $cols));
+            }
             fclose($f);
         };
         return response()->stream($cb, 200, $headers);
     }
 
-    /**
-     * FIX for "Failed to load" — wrap baseQuery as a subquery so we can
-     * filter/order on the aliased columns (current, days_1_30, etc.).
-     */
     public function agingBucket(Request $request)
     {
         $aliasMap = [
@@ -483,15 +586,13 @@ class DashboardController extends Controller
         $bucketKey = $request->input('bucket', 'current');
         $alias     = $aliasMap[$bucketKey] ?? 'current';
         $period    = $this->resolvePeriod($request);
-
-        $inner = $this->baseQuery($request, $period);
+        $inner     = $this->baseQuery($request, $period);
 
         $rows = DB::table(DB::raw("({$inner->toSql()}) as sub"))
             ->mergeBindings($inner)
             ->where($alias, '>', 0)
             ->orderByDesc($alias)
-            ->select(['customer_name','collection_by','plant',
-                      $alias.' as bucket_amount','total'])
+            ->select(['customer_name', 'collection_by', 'plant', $alias . ' as bucket_amount', 'total'])
             ->get();
 
         return response()->json([
@@ -524,7 +625,7 @@ class DashboardController extends Controller
         ]);
 
         $record   = ArRecord::findOrFail($id);
-        $soFields = array_intersect_key($data, array_flip(['so_without_od','so_with_od','total_so']));
+        $soFields = array_intersect_key($data, array_flip(['so_without_od', 'so_with_od', 'total_so']));
         $arFields = array_diff_key($data, $soFields);
 
         if ($arFields) $record->update($arFields);
