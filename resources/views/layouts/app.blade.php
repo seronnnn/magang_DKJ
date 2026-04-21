@@ -169,6 +169,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
     <a href="{{ route('dashboard.overlimit') }}"  class="nav-item {{ request()->routeIs('dashboard.overlimit')  ? 'active':'' }}">⚠️ SO Overlimit</a>
     <a href="{{ route('dashboard.customers') }}"  class="nav-item {{ request()->routeIs('dashboard.customers')  ? 'active':'' }}">👥 Customers</a>
 
+    @if(Auth::user()->isCollector())
+    <div class="nav-divider"></div>
+    <a href="{{ route('reminder.index') }}"
+       class="nav-item {{ request()->routeIs('reminder.*') ? 'active':'' }}">
+      🔔 Reminder AR
+      <span style="margin-left:auto;font-size:9px;background:rgba(249,115,22,.2);color:#f97316;
+                   padding:1px 6px;border-radius:99px;font-weight:700;letter-spacing:.05em">DES</span>
+    </a>
+    @endif
+    
     @if(Auth::user()->isAdmin())
     <div class="nav-divider"></div>
     <a href="{{ route('dashboard.history') }}" class="nav-item {{ request()->routeIs('dashboard.history') ? 'active':'' }}">

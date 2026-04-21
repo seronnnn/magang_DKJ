@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ReminderController;
 
 Route::get('/', fn() => redirect()->route('dashboard.index'));
 
@@ -16,6 +17,12 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    Route::prefix('reminder')->name('reminder.')->group(function () {
+        Route::get('/',                       [ReminderController::class, 'index'])       ->name('index');
+        Route::post('/email/{invoiceId}',     [ReminderController::class, 'sendEmail'])   ->name('sendEmail');
+        Route::post('/whatsapp/{invoiceId}',  [ReminderController::class, 'whatsappLink'])->name('whatsappLink');
+        Route::post('/bulk',                  [ReminderController::class, 'bulkRemind'])  ->name('bulk');
+    });
     Route::prefix('dashboard')->name('dashboard.')->group(function () {
         Route::get('/',                        [DashboardController::class, 'index'])          ->name('index');
         Route::get('/aging',                   [DashboardController::class, 'aging'])          ->name('aging');
