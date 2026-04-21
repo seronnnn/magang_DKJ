@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Reminder AR')
-@section('page-title', 'Reminder AR — Desember 2025')
+@section('page-title', 'Reminder AR')
 
 {{-- Override period selector — not needed on this page --}}
 @php $periods = collect(); @endphp
@@ -22,13 +22,27 @@
     @endforeach
   </div>
 
+  {{-- Legend --}}
+  @foreach([
+    ['#dc2626','Lewat Jatuh Tempo'],
+    ['#e11d48','Critical ≤3h'],
+    ['#f97316','Urgent ≤7h'],
+    ['#d97706','Soon ≤14h'],
+    ['#16a34a','Upcoming'],
+  ] as [$color, $lbl])
+  <div style="display:flex;align-items:center;gap:4px">
+    <div style="width:8px;height:8px;border-radius:2px;background:{{ $color }}"></div>
+    <span style="font-size:10px;color:var(--muted)">{{ $lbl }}</span>
+  </div>
+  @endforeach
+
   {{-- Bulk Email button --}}
   <button onclick="openBulkModal('email')"
     style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--navy);color:#fff;
            border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s"
     onmouseover="this.style.background='#0d1f3c'" onmouseout="this.style.background='var(--navy)'">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-    Kirim Email Massal
+    Kirim Email Terpilih
   </button>
 
   {{-- Bulk WhatsApp button --}}
@@ -37,7 +51,7 @@
            border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s"
     onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.126.558 4.117 1.535 5.845L0 24l6.294-1.508A11.954 11.954 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 11.999 0zm0 21.818a9.818 9.818 0 0 1-5.007-1.374l-.36-.213-3.737.894.937-3.636-.235-.374A9.822 9.822 0 0 1 2.182 12c0-5.414 4.403-9.818 9.818-9.818 5.414 0 9.818 4.404 9.818 9.818 0 5.415-4.404 9.818-9.819 9.818z"/></svg>
-    WhatsApp Massal
+    WA Terpilih
   </button>
 
 </div>
@@ -170,7 +184,7 @@
 <div class="grid-kpi-4" style="margin-bottom:20px">
 
   <div class="kpi-card card-accent-blue">
-    <div class="kpi-label">Total Invoice Desember</div>
+    <div class="kpi-label">Total Invoice</div>
     <div class="kpi-value mono">{{ $invoices->count() }}</div>
     <div class="kpi-sub">{{ $totalCustomers }} pelanggan unik</div>
   </div>
@@ -192,7 +206,7 @@
   <div class="kpi-card card-accent-green">
     <div class="kpi-label">Collector</div>
     <div class="kpi-value" style="font-size:16px;font-weight:800">{{ $collectorName }}</div>
-    <div class="kpi-sub">AR Desember 2025</div>
+    <div class="kpi-sub">Simulated: 1 Dec 2024</div>
   </div>
 
 </div>
@@ -204,7 +218,7 @@
   <div style="font-size:48px;margin-bottom:16px">📋</div>
   <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px">Tidak ada invoice ditemukan</div>
   <div style="font-size:13px;color:var(--muted)">
-    Tidak ada invoice yang jatuh tempo di bulan Desember 2025 untuk collector ini.
+    Tidak ada invoice yang tersedia untuk collector ini.
   </div>
 </div>
 @else
@@ -217,26 +231,11 @@
               display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
     <div>
       <div style="font-size:13px;font-weight:700;color:var(--navy)">
-        Invoice Jatuh Tempo Desember 2025
+        Invoice Reminder
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">
-        {{ $invoices->count() }} invoice · Klik tombol untuk kirim pengingat
+        {{ $invoices->count() }} invoice · Simulated today: 1 Desember 2024 · Klik tombol untuk kirim pengingat
       </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      {{-- Legend --}}
-      @foreach([
-        ['urgency-overdue','Lewat Jatuh Tempo','#dc2626'],
-        ['urgency-critical','Critical ≤3h','#e11d48'],
-        ['urgency-urgent','Urgent ≤7h','#f97316'],
-        ['urgency-soon','Soon ≤14h','#d97706'],
-        ['urgency-upcoming','Upcoming','#16a34a'],
-      ] as [$cls, $lbl, $color])
-      <div style="display:flex;align-items:center;gap:4px">
-        <div style="width:8px;height:8px;border-radius:2px;background:{{ $color }}"></div>
-        <span style="font-size:10px;color:var(--muted)">{{ $lbl }}</span>
-      </div>
-      @endforeach
     </div>
   </div>
 
@@ -419,23 +418,11 @@
     </table>
   </div>
 
-  {{-- Table footer --}}
+  {{-- Table footer — simplified, bulk buttons moved to topbar --}}
   <div style="padding:12px 20px;border-top:1px solid var(--border);background:#f8fafc;
               display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
     <div style="font-size:12px;color:var(--muted)">
       <span id="selected-footer-count">0</span> invoice dipilih
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="openBulkModal('email')"
-        style="padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:8px;
-               font-size:11px;font-weight:700;cursor:pointer">
-        📧 Kirim Email Terpilih
-      </button>
-      <button onclick="openBulkModal('whatsapp')"
-        style="padding:6px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;
-               font-size:11px;font-weight:700;cursor:pointer">
-        💬 WA Terpilih
-      </button>
     </div>
   </div>
 
@@ -447,11 +434,6 @@
   from { opacity:0; transform:translateX(20px); }
   to   { opacity:1; transform:translateX(0); }
 }
-@keyframes fadeIn {
-  from { opacity:0; transform:translateY(-8px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-#toast { animation: slideIn .3s ease; }
 </style>
 
 @endsection
@@ -460,9 +442,6 @@
 <script>
 const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
-/* ───────────────────────────────────────────────
-   Toast helper
-─────────────────────────────────────────────── */
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   const colors = {
@@ -487,9 +466,6 @@ function showToast(msg, type = 'success') {
   window._toastTimer = setTimeout(() => t.style.display = 'none', 5000);
 }
 
-/* ───────────────────────────────────────────────
-   Row checkbox sync
-─────────────────────────────────────────────── */
 function updateSelectedCount() {
   const count = document.querySelectorAll('.row-check:checked').length;
   const el    = document.getElementById('selected-footer-count');
@@ -505,13 +481,9 @@ function tableSelectAll(master) {
   updateSelectedCount();
 }
 
-/* ───────────────────────────────────────────────
-   Single Email
-─────────────────────────────────────────────── */
 async function sendSingleEmail(invoiceId, customerName) {
   const btn = document.getElementById('email-btn-' + invoiceId);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
-
   try {
     const res  = await fetch(`/reminder/email/${invoiceId}`, {
       method : 'POST',
@@ -531,13 +503,9 @@ async function sendSingleEmail(invoiceId, customerName) {
   }
 }
 
-/* ───────────────────────────────────────────────
-   Single WhatsApp
-─────────────────────────────────────────────── */
 async function sendSingleWA(invoiceId, customerName) {
   const btn = document.getElementById('wa-btn-' + invoiceId);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
-
   try {
     const res  = await fetch(`/reminder/whatsapp/${invoiceId}`, {
       method : 'POST',
@@ -545,14 +513,12 @@ async function sendSingleWA(invoiceId, customerName) {
     });
     const data = await res.json();
     if (data.success) {
-      // Show preview modal
       document.getElementById('wa-modal-customer').textContent = customerName;
-      // Decode URL to show preview
       const msg = decodeURIComponent(data.url.split('?text=')[1] || '');
       document.getElementById('wa-modal-preview').textContent = msg;
       document.getElementById('wa-open-link').href = data.url;
       document.getElementById('wa-modal-overlay').style.display = 'flex';
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.126.558 4.117 1.535 5.845L0 24l6.294-1.508A11.954 11.954 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 11.999 0zm0 21.818a9.818 9.818 0 0 1-5.007-1.374l-.36-.213-3.737.894.937-3.636-.235-.374A9.822 9.822 0 0 1 2.182 12c0-5.414 4.403-9.818 9.818-9.818 5.414 0 9.818 4.404 9.818 9.818 0 5.415-4.404 9.818-9.819 9.818z"/></svg> WA'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'WA'; }
     } else {
       showToast(data.message || 'Gagal mengambil link WA.', 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'WA'; }
@@ -567,9 +533,6 @@ function closeWaModal() {
   document.getElementById('wa-modal-overlay').style.display = 'none';
 }
 
-/* ───────────────────────────────────────────────
-   Bulk Modal
-─────────────────────────────────────────────── */
 let currentBulkType = 'email';
 
 function openBulkModal(type) {
@@ -590,7 +553,6 @@ function openBulkModal(type) {
   document.getElementById('bulk-wa-results').style.display = 'none';
   document.getElementById('bulk-modal-feedback').style.display = 'none';
 
-  // Build invoice list
   const rows = document.querySelectorAll('#reminder-table tbody tr');
   let html   = '';
   rows.forEach(row => {
@@ -608,7 +570,6 @@ function openBulkModal(type) {
       'urgency-upcoming' : ['#dcfce7','#166534'],
     };
     const [bg, color] = urgColors[urgency] || ['#f1f5f9','#475569'];
-
     const preChecked = document.querySelector(`.row-check[value="${id}"]`)?.checked;
 
     html += `
@@ -698,23 +659,19 @@ async function executeBulkSend() {
 
     if (data.success) {
       if (currentBulkType === 'whatsapp' && data.wa_links && data.wa_links.length > 0) {
-        // Show WA links
         document.getElementById('bulk-wa-results').style.display = 'block';
         document.getElementById('bulk-wa-links').innerHTML = data.wa_links.map(l =>
           `<a href="${l.url}" target="_blank"
               style="display:flex;align-items:center;gap:8px;padding:8px 12px;
                      margin-bottom:6px;background:#dcfce7;border:1px solid #86efac;
                      border-radius:8px;text-decoration:none;color:#15803d;
-                     font-size:12px;font-weight:600;transition:all .15s"
-              onmouseover="this.style.background='#bbf7d0'"
-              onmouseout="this.style.background='#dcfce7'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.126.558 4.117 1.535 5.845L0 24l6.294-1.508A11.954 11.954 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 11.999 0zm0 21.818a9.818 9.818 0 0 1-5.007-1.374l-.36-.213-3.737.894.937-3.636-.235-.374A9.822 9.822 0 0 1 2.182 12c0-5.414 4.403-9.818 9.818-9.818 5.414 0 9.818 4.404 9.818 9.818 0 5.415-4.404 9.818-9.819 9.818z"/></svg>
-            ${l.customer} — Buka WhatsApp
+                     font-size:12px;font-weight:600;transition:all .15s">
+            💬 ${l.customer} — Buka WhatsApp
           </a>`
         ).join('');
         showToast(`${data.sent} WA link berhasil dibuat.`, 'success');
       } else {
-        fb.textContent    = `✅ ${data.sent} email terkirim · ${data.skipped} dilewati (tidak ada email)`;
+        fb.textContent    = `✅ ${data.sent} email terkirim · ${data.skipped} dilewati`;
         fb.style.cssText  = 'display:block;background:#dcfce7;border:1px solid #86efac;color:#166534;padding:12px 16px;border-radius:9px;font-size:13px;font-weight:600;margin-top:14px';
         showToast(`${data.sent} email reminder berhasil dikirim!`, 'success');
         setTimeout(() => closeBulkModal(), 3000);

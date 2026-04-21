@@ -314,8 +314,10 @@ class DashboardController extends Controller
             ->toArray();
 
         $invoices = DB::table('ar_records as r')
-            ->join('invoice as inv',   'inv.id', '=', 'r.invoice_id')
-            ->join('ar_periods as ap', 'ap.id',  '=', 'r.period_id')
+            ->join('invoice as inv',     'inv.id',   '=', 'r.invoice_id')
+            ->join('ar_periods as ap',   'ap.id',    '=', 'r.period_id')
+            ->join('customers as c2',    'c2.id',    '=', 'inv.customer_id')
+            ->join('collectors as col2', 'col2.id',  '=', 'c2.collector_id')
             ->where('inv.customer_id', $customer->id)
             ->select([
                 'r.id',
@@ -333,6 +335,7 @@ class DashboardController extends Controller
                 'r.total_ar            as total',
                 'r.ar_target',
                 'r.ar_actual',
+                'col2.name             as collector_name',
             ])
             ->orderByDesc('ap.period_month')
             ->get();

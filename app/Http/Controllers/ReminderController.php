@@ -26,6 +26,16 @@ class ReminderController extends Controller
     }
 
     /**
+     * Simulated "today" for demo purposes.
+     * Pretend it is 1 December 2024 so all invoices from Jan 2024–Dec 2025
+     * get correctly classified relative to that date.
+     */
+    private function simulatedNow(): \Carbon\Carbon
+    {
+        return \Carbon\Carbon::create(2024, 12, 1, 0, 0, 0);
+    }
+
+    /**
      * Resolve the collector record for the current authenticated user.
      */
     private function getCollector(): ?Collector
@@ -34,8 +44,8 @@ class ReminderController extends Controller
     }
 
     /**
-     * Main reminder page — shows invoices due in December 2025
-     * that belong to the logged-in collector.
+     * Main reminder page — shows ALL invoices for the logged-in collector,
+     * classified relative to the simulated date of 1 December 2024.
      */
     public function index(Request $request)
     {
@@ -48,12 +58,11 @@ class ReminderController extends Controller
                 'totalDue'       => 0,
                 'totalCustomers' => 0,
                 'urgentCount'    => 0,
-                'sentCount'      => session('reminder_sent_count', 0),
                 'filterStatus'   => $request->input('status', 'all'),
             ]);
         }
 
-        // Base query: invoices due in December 2025 for this collector
+        // Base query: ALL invoices for this collector (no date restriction)
         $query = DB::table('invoice as inv')
             ->join('customers as c',    'c.id',          '=', 'inv.customer_id')
             ->join('collectors as col', 'col.id',        '=', 'c.collector_id')
@@ -62,8 +71,6 @@ class ReminderController extends Controller
                 $j->on('r.invoice_id', '=', 'inv.id');
             })
             ->where('col.id', $collector->id)
-            ->whereYear('inv.due_date', 2025)
-            ->whereMonth('inv.due_date', 12)
             ->select([
                 'inv.id                  as invoice_id',
                 'c.customer_id           as customer_code',
@@ -95,21 +102,25 @@ class ReminderController extends Controller
             });
         }
 
-        $invoices = collect($query->get())->map(function ($row) {
-            $now          = now();
+        $now = $this->simulatedNow();
+
+        $invoices = collect($query->get())->map(function ($row) use ($now) {
             $dueDate      = \Carbon\Carbon::parse($row->due_date);
-            $daysLeft     = $now->diffInDays($dueDate, false); // negative = overdue
-            $row->days_left      = (int) $daysLeft;
-            $row->is_overdue     = $daysLeft < 0;
-            $row->is_urgent      = $daysLeft >= 0 && $daysLeft <= 7;
-            $row->urgency_label  = match(true) {
+            // diffInDays: positive = due date is in the future, negative = overdue
+            $daysLeft     = (int) $now->diffInDays($dueDate, false);
+
+            $row->days_left     = $daysLeft;
+            $row->is_overdue    = $daysLeft < 0;
+            $row->is_urgent     = $daysLeft >= 0 && $daysLeft <= 7;
+
+            $row->urgency_label = match(true) {
                 $daysLeft < 0    => 'Overdue',
                 $daysLeft <= 3   => 'Critical',
                 $daysLeft <= 7   => 'Urgent',
                 $daysLeft <= 14  => 'Soon',
                 default          => 'Upcoming',
             };
-            $row->urgency_class  = match(true) {
+            $row->urgency_class = match(true) {
                 $daysLeft < 0    => 'urgency-overdue',
                 $daysLeft <= 3   => 'urgency-critical',
                 $daysLeft <= 7   => 'urgency-urgent',
@@ -127,7 +138,7 @@ class ReminderController extends Controller
             'totalCustomers' => $invoices->pluck('customer_code')->unique()->count(),
             'urgentCount'    => $invoices->filter(fn($i) => $i->is_urgent || $i->is_overdue)->count(),
             'filterStatus'   => $filterStatus,
-            'periods'        => collect(), // override to suppress period selector
+            'periods'        => collect(),
         ]);
     }
 
@@ -139,7 +150,6 @@ class ReminderController extends Controller
         $collector = $this->getCollector();
         if (!$collector) abort(403);
 
-        // Fetch invoice + customer, ensure it belongs to this collector
         $invoice = DB::table('invoice as inv')
             ->join('customers as c',    'c.id',   '=', 'inv.customer_id')
             ->join('collectors as col', 'col.id', '=', 'c.collector_id')
@@ -172,7 +182,6 @@ class ReminderController extends Controller
 
     /**
      * Build a WhatsApp deep-link URL for a reminder message.
-     * (Actual sending is done client-side via wa.me)
      */
     public function whatsappLink(Request $request, int $invoiceId)
     {
@@ -226,7 +235,6 @@ class ReminderController extends Controller
         MSG;
 
         $phone = preg_replace('/\D/', '', $invoice->whatsapp_number);
-        // Ensure country code (assume Indonesia +62 if starts with 0)
         if (str_starts_with($phone, '0')) {
             $phone = '62' . substr($phone, 1);
         }
@@ -237,14 +245,14 @@ class ReminderController extends Controller
     }
 
     /**
-     * Bulk send reminders (email + WhatsApp link) for all urgent/overdue invoices.
+     * Bulk send reminders (email + WhatsApp link) for selected invoices.
      */
     public function bulkRemind(Request $request)
     {
         $collector = $this->getCollector();
         if (!$collector) abort(403);
 
-        $type       = $request->input('type', 'email'); // 'email' or 'whatsapp'
+        $type       = $request->input('type', 'email');
         $invoiceIds = $request->input('invoice_ids', []);
 
         if (empty($invoiceIds)) {
@@ -282,7 +290,6 @@ class ReminderController extends Controller
                     $skipped++;
                 }
             } else {
-                // WhatsApp — generate links
                 if (!empty($invoice->whatsapp_number)) {
                     $dueDate  = \Carbon\Carbon::parse($invoice->due_date)->format('d F Y');
                     $amount   = 'Rp ' . number_format($invoice->total_ar, 0, ',', '.');

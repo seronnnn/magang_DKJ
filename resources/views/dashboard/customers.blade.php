@@ -34,7 +34,7 @@
               style="background:none;border:1px solid var(--border);border-radius:8px;
                      width:32px;height:32px;cursor:pointer;font-size:18px;color:var(--muted);
                      display:flex;align-items:center;justify-content:center;flex-shrink:0"
-              onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">×</button>
+              onmouseover="this.parentElement.style.background=''" onmouseout="">×</button>
     </div>
 
     {{-- Loading --}}
@@ -72,6 +72,7 @@
               <tr>
                 <th>Period</th>
                 <th>Invoice ID</th>
+                <th>Collector</th>
                 <th>Due Date</th>
                 <th class="num">Current</th>
                 <th class="num">1–30d</th>
@@ -103,7 +104,6 @@
   <div class="table-scroll">
     <table class="data-table" id="cust-table">
       <thead><tr>
-        <th class="sortable" style="white-space:nowrap">Invoice ID <span class="sort-icon">↕</span></th>
         <th class="sortable" style="white-space:nowrap">Customer ID <span class="sort-icon">↕</span></th>
         <th class="sortable" style="white-space:nowrap">Customer Name <span class="sort-icon">↕</span></th>
         <th class="sortable" style="white-space:nowrap">Plant <span class="sort-icon">↕</span></th>
@@ -138,7 +138,6 @@
           data-rawactual="{{ intval($r->ar_actual) }}"
           data-rawrate="{{ $rate !== null ? floatval($rate) : -1 }}"
           data-rawsood="{{ intval($r->so_with_od) }}">
-        <td style="font-weight:700;white-space:nowrap">{{ $r->invoice_id ?? $r->id }}</td>
         <td class="mono" style="font-size:11px;color:var(--muted)">{{ $r->customer_id }}</td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ $r->customer_name }}">
           <button onclick="openCustDetail('{{ addslashes($r->customer_id) }}')"
@@ -195,19 +194,18 @@ const custTable = makeTableManager(
   'cust-count', 'cust-page-info', 'cust-page-btns', 'cust-prev', 'cust-next',
   10,
   {
-    0:  null,
-    1:  null,
-    2:  null,
-    3:  null,
-    4:  null,
-    5:  'rawcurrent',
-    6:  'raw130',
-    7:  'rawover60',
-    8:  'rawtotal',
-    9:  'rawtarget',
-    10: 'rawactual',
-    11: 'rawrate',
-    12: 'rawsood',
+    0:  null,          // Customer ID
+    1:  null,          // Customer Name
+    2:  null,          // Plant
+    3:  null,          // Collector
+    4:  'rawcurrent',
+    5:  'raw130',
+    6:  'rawover60',
+    7:  'rawtotal',
+    8:  'rawtarget',
+    9:  'rawactual',
+    10: 'rawrate',
+    11: 'rawsood',
   }
 );
 
@@ -283,21 +281,23 @@ async function openCustDetail(customerId) {
       plantsEl.innerHTML = '<span style="font-size:12px;color:var(--muted)">No plants assigned</span>';
     }
 
-    // Invoices
+    // Invoices — now with collector_name column
     const invs = data.invoices;
     document.getElementById('cd-inv-count').textContent = invs.length + ' record' + (invs.length !== 1 ? 's' : '');
 
     if (invs.length === 0) {
       document.getElementById('cd-inv-tbody').innerHTML =
-        `<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--muted)">No invoice records found.</td></tr>`;
+        `<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--muted)">No invoice records found.</td></tr>`;
     } else {
       document.getElementById('cd-inv-tbody').innerHTML = invs.map(inv => {
         const rate      = inv.ar_target > 0 ? (inv.ar_actual / inv.ar_target * 100).toFixed(1) : null;
         const rateColor = rate === null ? '#94a3b8' : (rate >= 100 ? '#16a34a' : rate >= 70 ? '#d97706' : '#dc2626');
         const hasOD     = (inv.days_60_90 > 0 || inv.days_over_90 > 0);
+        const collectorName = inv.collector_name || c.collector_name || '—';
         return `<tr style="${hasOD ? 'background:#fff9f9' : ''}">
           <td style="font-weight:600;white-space:nowrap;font-size:11px">${inv.period_label}</td>
           <td style="font-weight:700;white-space:nowrap">#${inv.invoice_id}</td>
+          <td style="font-weight:700;font-size:12px;white-space:nowrap;color:var(--navy)">${collectorName}</td>
           <td style="font-size:11px;color:var(--muted);white-space:nowrap">${inv.due_date || '—'}</td>
           <td class="num">${fmtIDR(inv.current)}</td>
           <td class="num">${fmtIDR(inv.days_1_30)}</td>
