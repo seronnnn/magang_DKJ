@@ -27,8 +27,7 @@ class ReminderController extends Controller
 
     /**
      * Simulated "today" for demo purposes.
-     * Pretend it is 1 December 2024 so all invoices from Jan 2024–Dec 2025
-     * get correctly classified relative to that date.
+     * Pretend it is 1 December 2024.
      */
     private function simulatedNow(): \Carbon\Carbon
     {
@@ -44,8 +43,12 @@ class ReminderController extends Controller
     }
 
     /**
-     * Main reminder page — shows ALL invoices for the logged-in collector,
-     * classified relative to the simulated date of 1 December 2024.
+     * Main reminder page.
+     *
+     * Filter tabs:
+     *   all     → all invoices
+     *   unpaid  → "Belum Lunas" = invoices past their due date (overdue)
+     *   overdue → "Ongoing"     = invoices not yet past their due date (upcoming)
      */
     public function index(Request $request)
     {
@@ -62,7 +65,7 @@ class ReminderController extends Controller
             ]);
         }
 
-        // Base query: ALL invoices for this collector (no date restriction)
+        // Base query: ALL invoices for this collector
         $query = DB::table('invoice as inv')
             ->join('customers as c',    'c.id',          '=', 'inv.customer_id')
             ->join('collectors as col', 'col.id',        '=', 'c.collector_id')
@@ -91,30 +94,28 @@ class ReminderController extends Controller
             ])
             ->orderBy('inv.due_date');
 
-        // Filter by status if requested
         $filterStatus = $request->input('status', 'all');
+        $now          = $this->simulatedNow();
+
         if ($filterStatus === 'unpaid') {
-            $query->where(DB::raw('COALESCE(r.ar_actual, 0)'), '<', DB::raw('COALESCE(r.ar_target, 0)'));
+            // "Belum Lunas" tab = invoices that have already passed their due date (overdue)
+            $query->where('inv.due_date', '<', $now->toDateString());
         } elseif ($filterStatus === 'overdue') {
-            $query->where(function ($q) {
-                $q->where(DB::raw('COALESCE(r.amount_over_90_days, 0)'), '>', 0)
-                  ->orWhere(DB::raw('COALESCE(r.amount_60_90_days, 0)'), '>', 0);
-            });
+            // "Ongoing" tab = invoices that are not yet past their due date (upcoming)
+            $query->where('inv.due_date', '>=', $now->toDateString());
         }
 
-        $now = $this->simulatedNow();
-
         $invoices = collect($query->get())->map(function ($row) use ($now) {
-            $dueDate      = \Carbon\Carbon::parse($row->due_date);
-            // diffInDays: positive = due date is in the future, negative = overdue
-            $daysLeft     = (int) $now->diffInDays($dueDate, false);
+            $dueDate  = \Carbon\Carbon::parse($row->due_date);
+            $daysLeft = (int) $now->diffInDays($dueDate, false);
 
-            $row->days_left     = $daysLeft;
-            $row->is_overdue    = $daysLeft < 0;
-            $row->is_urgent     = $daysLeft >= 0 && $daysLeft <= 7;
+            $row->days_left  = $daysLeft;
+            $row->is_overdue = $daysLeft < 0;
+            $row->is_urgent  = $daysLeft >= 0 && $daysLeft <= 7;
 
+            // Keep detailed urgency_class for internal use (bulk modal filtering etc.)
             $row->urgency_label = match(true) {
-                $daysLeft < 0    => 'Overdue',
+                $daysLeft < 0    => 'Lewat Jatuh Tempo',
                 $daysLeft <= 3   => 'Critical',
                 $daysLeft <= 7   => 'Urgent',
                 $daysLeft <= 14  => 'Soon',
@@ -210,10 +211,10 @@ class ReminderController extends Controller
             return response()->json(['success' => false, 'message' => 'No WhatsApp number on record for this customer.'], 422);
         }
 
-        $dueDate  = \Carbon\Carbon::parse($invoice->due_date)->format('d F Y');
-        $amount   = 'Rp ' . number_format($invoice->total_ar, 0, ',', '.');
-        $pic      = $invoice->pic_name ? "Yth. {$invoice->pic_name}" : "Yth. Tim Finance";
-        $company  = config('app.name', 'PT. Dunia Kimia Jaya');
+        $dueDate        = \Carbon\Carbon::parse($invoice->due_date)->format('d F Y');
+        $amount         = 'Rp ' . number_format($invoice->total_ar, 0, ',', '.');
+        $pic            = $invoice->pic_name ? "Yth. {$invoice->pic_name}" : "Yth. Tim Finance";
+        $company        = config('app.name', 'PT. Dunia Kimia Jaya');
         $collector_name = $collector->name;
 
         $message = <<<MSG

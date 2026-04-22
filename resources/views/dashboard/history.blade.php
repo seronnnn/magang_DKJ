@@ -15,7 +15,8 @@
 
   {{-- Collector selector --}}
   <select name="collector" class="filter-input" style="font-size:11px;padding:5px 10px">
-    <option value="">All Collectors</option>
+    <option value="">All Collectors (Individual Lines)</option>
+    <option value="__total__" {{ $selectedCollector == '__total__' ? 'selected' : '' }}>📊 Total All Collectors</option>
     @foreach($collectors as $c)
       <option value="{{ $c }}" {{ $selectedCollector == $c ? 'selected' : '' }}>{{ $c }}</option>
     @endforeach
@@ -70,6 +71,8 @@
   $cmpActual = $compareSummary->sum('total_actual');
   $cmpAR     = $compareSummary->sum('total_ar');
   $cmpRate   = $cmpTarget > 0 ? round($cmpActual / $cmpTarget * 100, 1) : null;
+
+  $isTotalMode = ($selectedCollector === '__total__');
 @endphp
 
 {{-- KPIs --}}
@@ -117,7 +120,14 @@
         @endif
       </div>
       <div style="font-size:12px;color:var(--muted);margin-top:2px">
-        {{ $selectedCollector !== '' ? $selectedCollector : 'All Collectors' }} · Solid = Actual, Dashed = Target
+        @if($isTotalMode)
+          📊 Total All Collectors Combined
+        @elseif($selectedCollector !== '')
+          {{ $selectedCollector }}
+        @else
+          All Collectors (Individual Lines)
+        @endif
+        · Solid = Actual, Dashed = Target
       </div>
     </div>
     @if($compareMode)
@@ -133,6 +143,21 @@
     </div>
     @endif
   </div>
+
+  {{-- Legend for individual lines mode --}}
+  @if(!$isTotalMode && $selectedCollector === '')
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px" id="collector-legend">
+    @foreach($datasets as $ds)
+      @if(!str_contains($ds['label'],'Target'))
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="width:16px;height:3px;background:{{ $ds['borderColor'] }};display:inline-block;border-radius:2px"></span>
+        <span style="font-size:11px;color:var(--muted)">{{ preg_replace('/\s*\(Actual\)\s*\(\d+\)/', '', $ds['label']) }}</span>
+      </div>
+      @endif
+    @endforeach
+  </div>
+  @endif
+
   <div style="position:relative;height:360px">
     <canvas id="historyChart"></canvas>
   </div>
@@ -143,7 +168,13 @@
   <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:12px;font-weight:700">
       Full-Year Summary — {{ $selectedYear }}
-      {{ $selectedCollector !== '' ? '· '.$selectedCollector : '· All Collectors' }}
+      @if($isTotalMode)
+        · 📊 Total All Collectors
+      @elseif($selectedCollector !== '')
+        · {{ $selectedCollector }}
+      @else
+        · All Collectors
+      @endif
     </div>
   </div>
   <div class="table-scroll">
@@ -197,7 +228,13 @@
   <div style="padding:16px 20px;border-bottom:1px solid #bfdbfe;background:#eff6ff">
     <div style="font-size:12px;font-weight:700;color:#1e40af">
       Full-Year Summary — {{ $compareYear }} (Compare)
-      {{ $selectedCollector !== '' ? '· '.$selectedCollector : '· All Collectors' }}
+      @if($isTotalMode)
+        · 📊 Total All Collectors
+      @elseif($selectedCollector !== '')
+        · {{ $selectedCollector }}
+      @else
+        · All Collectors
+      @endif
     </div>
   </div>
   <div class="table-scroll">

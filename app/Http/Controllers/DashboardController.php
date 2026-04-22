@@ -405,14 +405,13 @@ class DashboardController extends Controller
     /**
      * Build Chart.js line datasets for a single year.
      *
-     * '' (empty string)  → aggregate ALL collectors into one "All Collectors" line
-     * 'Miya' (non-empty) → show only that collector's line
-     *
-     * $isCompare = true uses a different colour palette so the two years are visually distinct.
+     * ''          → show each collector as its own individual line
+     * '__total__' → aggregate ALL collectors into ONE "Total All Collectors" line
+     * 'Miya'      → show only that collector's line
      */
     private function buildHistoryDatasets(
         int     $year,
-        string  $selectedCollector,   // always a string; '' means "all"
+        string  $selectedCollector,
         array   $collectorNames,
         bool    $isCompare = false
     ): array {
@@ -426,10 +425,17 @@ class DashboardController extends Controller
 
         $datasets = [];
 
-        // '' = show one combined "All Collectors" line; specific name = one line
-        $items = $selectedCollector !== ''
-            ? [['label' => $selectedCollector, 'filterBy' => $selectedCollector]]
-            : [['label' => 'All Collectors',   'filterBy' => null]];
+        // Determine what lines to render
+        if ($selectedCollector === '__total__') {
+            // Single combined "Total" line — no filterBy
+            $items = [['label' => 'Total All Collectors', 'filterBy' => null]];
+        } elseif ($selectedCollector !== '') {
+            // Single named collector
+            $items = [['label' => $selectedCollector, 'filterBy' => $selectedCollector]];
+        } else {
+            // All collectors individually
+            $items = array_map(fn($n) => ['label' => $n, 'filterBy' => $n], $collectorNames);
+        }
 
         foreach ($items as $i => $item) {
             $q = DB::table('ar_records as r')
@@ -492,10 +498,36 @@ class DashboardController extends Controller
 
     /**
      * Build full-year summary rows for the table below the chart.
-     * '' = all collectors; specific name = filtered.
+     * ''          → all collectors individually
+     * '__total__' → one combined row labelled "Total All Collectors"
+     * specific    → filtered to that collector only
      */
     private function buildHistorySummary(int $year, string $selectedCollector): \Illuminate\Support\Collection
     {
+        // __total__ mode: aggregate everything into one row
+        if ($selectedCollector === '__total__') {
+            $row = DB::table('ar_records as r')
+                ->join('invoice as inv',    'inv.id', '=', 'r.invoice_id')
+                ->join('customers as c',    'c.id',   '=', 'inv.customer_id')
+                ->join('collectors as col', 'col.id', '=', 'c.collector_id')
+                ->join('ar_periods as ap',  'ap.id',  '=', 'r.period_id')
+                ->whereYear('ap.period_month', $year)
+                ->selectRaw("
+                    'Total All Collectors' as collector,
+                    SUM(r.ar_target) as total_target,
+                    SUM(r.ar_actual) as total_actual,
+                    SUM(r.total_ar)  as total_ar
+                ")
+                ->first();
+
+            if (!$row) return collect();
+
+            $row->rate = $row->total_target > 0
+                ? round($row->total_actual / $row->total_target * 100, 1) : null;
+
+            return collect([$row]);
+        }
+
         $q = DB::table('ar_records as r')
             ->join('invoice as inv',    'inv.id', '=', 'r.invoice_id')
             ->join('customers as c',    'c.id',   '=', 'inv.customer_id')
