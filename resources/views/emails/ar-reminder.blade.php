@@ -13,17 +13,25 @@
   .header { background: #0f2942; padding: 24px 32px; }
   .header-inner { display: table; width: 100%; }
   .header-logo-wrap { display: table-cell; vertical-align: middle; width: 56px; }
-  .header-logo-img { width: 48px; height: 48px; object-fit: contain; display: block; }
+  .header-logo-img  { width: 48px; height: 48px; object-fit: contain; display: block; }
   .header-logo-placeholder {
     width: 48px; height: 48px; border-radius: 10px;
     background: rgba(255,255,255,.15);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -1px;
+    display: inline-block;
+    text-align: center; line-height: 48px;
+    font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -1px;
   }
   .header-text-wrap { display: table-cell; vertical-align: middle; padding-left: 14px; }
   .header-brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.5px; line-height: 1.1; }
   .header-brand span { color: #38bdf8; }
   .header-subtitle { font-size: 11px; color: #94afc8; margin-top: 3px; text-transform: uppercase; letter-spacing: .1em; }
+
+  /* ── Sender badge ── */
+  .sender-badge {
+    background: rgba(56,189,248,.15); border: 1px solid rgba(56,189,248,.3);
+    border-radius: 6px; padding: 5px 12px; margin-top: 12px; display: inline-block;
+    font-size: 11px; color: #7dd3fc; font-weight: 600; letter-spacing: .04em;
+  }
 
   /* ── Body ── */
   .body { padding: 32px 36px; }
@@ -76,6 +84,7 @@
   .collector-sig { margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0; }
   .collector-name { font-size: 14px; font-weight: 700; color: #0f2942; }
   .collector-role { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .collector-email { font-size: 11px; color: #38bdf8; margin-top: 3px; }
 
   /* ── Footer ── */
   .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 18px 36px; }
@@ -89,11 +98,15 @@
   <div class="header">
     <div class="header-inner">
       <div class="header-logo-wrap">
-        {{-- Try to show the actual logo; fallback to text initials --}}
+        {{--
+          Logo fix: use asset() or url() to generate a proper HTTP URL.
+          public_path() returns a filesystem path which does NOT work in emails.
+          Place your logo at public/images/logo_dkj.png and it will load correctly.
+        --}}
         @if(file_exists(public_path('images/logo_dkj.png')))
-          <img src="{{ public_path('images/logo_dkj.png') }}" alt="DKJ Logo" class="header-logo-img">
+          <img src="{{ asset('images/logo_dkj.jpg') }}" alt="DKJ Logo" class="header-logo-img">
         @elseif(file_exists(public_path('logo.png')))
-          <img src="{{ public_path('logo.png') }}" alt="DKJ Logo" class="header-logo-img">
+          <img src="{{ asset('logo.png') }}" alt="DKJ Logo" class="header-logo-img">
         @else
           <div class="header-logo-placeholder">DKJ</div>
         @endif
@@ -101,6 +114,10 @@
       <div class="header-text-wrap">
         <div class="header-brand">DKJ <span>Finance</span></div>
         <div class="header-subtitle">PT. Dunia Kimia Jaya · AR Collection</div>
+        {{-- Show which collector account is sending this email --}}
+        <div class="sender-badge">
+          ✉ Dikirim oleh: {{ $collectorName }}
+        </div>
       </div>
     </div>
   </div>
@@ -199,9 +216,29 @@
       Untuk informasi lebih lanjut, silakan hubungi collector kami.
     </p>
 
+    {{-- ── Collector Signature ── --}}
     <div class="collector-sig">
       <div class="collector-name">{{ $collectorName }}</div>
       <div class="collector-role">AR Collector · PT. Dunia Kimia Jaya</div>
+      @php
+        // Mirror the same lookup logic from ArReminderMail for display purposes
+        $collectorEmailMap = [
+            'miya'  => 'testing_miya@gmail.com',
+            'mega'  => 'testing_mega@gmail.com',
+            'risa'  => 'testing_risa@gmail.com',
+            'viona' => 'testing_viona@gmail.com',
+        ];
+        $collectorKey = strtolower(trim($collectorName));
+        $displayEmail = $collectorEmailMap[$collectorKey] ?? null;
+        if (!$displayEmail) {
+            foreach ($collectorEmailMap as $name => $email) {
+                if (str_contains($collectorKey, $name)) { $displayEmail = $email; break; }
+            }
+        }
+      @endphp
+      @if($displayEmail)
+        <div class="collector-email">{{ $displayEmail }}</div>
+      @endif
     </div>
   </div>
 

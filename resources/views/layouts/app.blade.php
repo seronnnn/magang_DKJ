@@ -154,8 +154,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
 
 {{-- ── Sidebar ── --}}
 <div id="sidebar">
-  <div style="padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08)">
-    <div style="font-family:'Libre Baskerville',serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:-.3px">DKJ</div>
+<div style="padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <img src="{{ asset('images/logo_dkj.jpg') }}" alt="DKJ Logo"
+           style="width:36px;height:36px;border-radius:8px;object-fit:contain;flex-shrink:0;background:#fff;padding:2px">
+      <div style="font-family:'Libre Baskerville',serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:-.3px">DKJ</div>
+    </div>
     <div style="font-size:10px;color:#94afc8;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">AR Dashboard</div>
     <div style="font-size:10px;color:#64748b;margin-top:4px">
       {{ isset($period) && $period ? $period->period_label : 'All Periods' }}
