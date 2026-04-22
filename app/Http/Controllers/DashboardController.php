@@ -353,14 +353,17 @@ class DashboardController extends Controller
 
     public function history(Request $request)
     {
-        if (!Auth::user()?->isAdmin()) {
-            abort(403, 'Access denied.');
-        }
+        // History is now open to all roles.
+        // Collectors are locked to their own data; admin/manager can see all.
+        $lockedCollector = $this->lockedCollector();
 
         // Cast to string so downstream methods never receive null
-        $selectedCollector = (string) ($request->input('collector') ?? '');
+        $selectedCollector = $lockedCollector
+            ? $lockedCollector
+            : (string) ($request->input('collector') ?? '');
+
         $selectedYear      = (int) $request->input('year', date('Y'));
-        $compareMode       = $request->boolean('compare');
+        $compareMode       = (!$lockedCollector) && $request->boolean('compare');
         $compareYear       = (int) $request->input('compare_year', $selectedYear - 1);
 
         $availableYears = ArPeriod::selectRaw('YEAR(period_month) as yr')
@@ -373,7 +376,7 @@ class DashboardController extends Controller
         $periodLabels  = $primaryData['labels'];
         $chartDatasets = $primaryData['datasets'];
 
-        // Compare year datasets (if enabled)
+        // Compare year datasets (if enabled — admin/manager only)
         if ($compareMode) {
             $compareData = $this->buildHistoryDatasets($compareYear, $selectedCollector, $collectorNames, true);
             if (empty($periodLabels) && !empty($compareData['labels'])) {
@@ -399,6 +402,7 @@ class DashboardController extends Controller
             'compareMode'       => $compareMode,
             'compareYear'       => $compareYear,
             'periods'           => $this->periods(),
+            'lockedCollector'   => $lockedCollector,
         ]);
     }
 

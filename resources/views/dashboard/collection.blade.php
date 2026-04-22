@@ -37,8 +37,18 @@
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
   <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div style="font-size:12px;font-weight:700">Collection Detail (<span id="col-count">{{ $rows->count() }}</span> records)</div>
-    <input type="text" id="col-search" placeholder="Search customer…" oninput="colTable.search(this.value)"
-      style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="text" id="col-search" placeholder="Search customer…" oninput="colTable.search(this.value)"
+        style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
+      <button onclick="exportTableCSV('col-table', 'ar_collection.csv')"
+        style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
+               background:#16a34a;color:#fff;border:none;border-radius:8px;
+               font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s"
+        onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+    </div>
   </div>
   <div class="table-scroll">
     <table class="data-table" id="col-table">
@@ -110,21 +120,22 @@
 </div>
 
 @include('partials.table-manager-styles')
+@include('partials.csv-export')
 <script>
 const colTable = makeTableManager(
   'col-tbody', 'col-table',
   'col-count', 'col-page-info', 'col-page-btns', 'col-prev', 'col-next',
   10,
   {
-    0: null,          // Invoice ID
-    1: null,          // Customer
-    2: null,          // Plant
-    3: null,          // Collector
-    4: 'rawtotal',    // Total AR
-    5: 'rawtarget',   // Target
-    6: 'rawactual',   // Actual
-    7: 'rawrate',     // Rate
-    8: null,          // Status — text
+    0: null,
+    1: null,
+    2: null,
+    3: null,
+    4: 'rawtotal',
+    5: 'rawtarget',
+    6: 'rawactual',
+    7: 'rawrate',
+    8: null,
   }
 );
 </script>

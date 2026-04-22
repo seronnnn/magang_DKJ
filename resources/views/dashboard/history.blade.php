@@ -2,6 +2,8 @@
 @section('title','History')
 @section('page-title','Collection History')
 
+@php $isCollectorRole = Auth::user()->isCollector(); @endphp
+
 @section('topbar-actions')
 <form method="GET" action="{{ route('dashboard.history') }}" id="history-form"
       style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -13,7 +15,16 @@
     @endforeach
   </select>
 
-  {{-- Collector selector --}}
+  {{-- Collector selector — locked for collectors, dropdown for admin/manager --}}
+  @if($isCollectorRole)
+    <input type="hidden" name="collector" value="{{ $selectedCollector }}">
+    <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
+                 background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;
+                 font-size:12px;font-weight:600;color:#1e40af">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      {{ $selectedCollector }}
+    </span>
+  @else
   <select name="collector" class="filter-input" style="font-size:11px;padding:5px 10px">
     <option value="">All Collectors (Individual Lines)</option>
     <option value="__total__" {{ $selectedCollector == '__total__' ? 'selected' : '' }}>📊 Total All Collectors</option>
@@ -21,8 +32,10 @@
       <option value="{{ $c }}" {{ $selectedCollector == $c ? 'selected' : '' }}>{{ $c }}</option>
     @endforeach
   </select>
+  @endif
 
-  {{-- Compare checkbox --}}
+  {{-- Compare checkbox — hide for collectors (keep it simple) --}}
+  @if(!$isCollectorRole)
   <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
                 color:var(--navy);cursor:pointer;padding:6px 12px;border:1px solid var(--border);
                 border-radius:8px;background:{{ $compareMode ? '#dbeafe' : 'var(--surface)' }};
@@ -46,10 +59,11 @@
       @endforeach
     </select>
   </div>
+  @endif
 
   <button type="submit" class="btn btn-primary" style="font-size:11px;padding:6px 14px">Search</button>
 
-  @if($selectedCollector !== '' || $selectedYear != date('Y') || $compareMode)
+  @if(!$isCollectorRole && ($selectedCollector !== '' || $selectedYear != date('Y') || $compareMode))
     <a href="{{ route('dashboard.history') }}" class="btn btn-ghost" style="font-size:11px">Clear</a>
   @endif
 </form>
@@ -222,8 +236,8 @@
   </div>
 </div>
 
-{{-- Compare Summary Table (only shown in compare mode) --}}
-@if($compareMode && $compareSummary->count() > 0)
+{{-- Compare Summary Table (only shown in compare mode, admin/manager only) --}}
+@if(!$isCollectorRole && $compareMode && $compareSummary->count() > 0)
 <div style="background:var(--surface);border:1px solid #bfdbfe;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px">
   <div style="padding:16px 20px;border-bottom:1px solid #bfdbfe;background:#eff6ff">
     <div style="font-size:12px;font-weight:700;color:#1e40af">

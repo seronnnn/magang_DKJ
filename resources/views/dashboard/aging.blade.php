@@ -59,8 +59,18 @@
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
   <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div style="font-size:12px;font-weight:700">Customer Aging Detail (<span id="aging-count">{{ $rows->count() }}</span> records)</div>
-    <input type="text" id="aging-search" placeholder="Search customer…" oninput="agingTable.search(this.value)"
-      style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="text" id="aging-search" placeholder="Search customer…" oninput="agingTable.search(this.value)"
+        style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
+      <button onclick="exportTableCSV('aging-table', 'ar_aging.csv')"
+        style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
+               background:#16a34a;color:#fff;border:none;border-radius:8px;
+               font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s"
+        onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+    </div>
   </div>
   <div class="table-scroll">
     <table class="data-table" id="aging-table">
@@ -131,24 +141,23 @@
 </div>
 
 @include('partials.table-manager-styles')
+@include('partials.csv-export')
 <script>
-// rawAttrMap: colIndex → dataset key (camelCase of data-* attribute)
-// data-raw-current → dataset.rawCurrent, data-raw130 → dataset.raw130, etc.
 const agingTable = makeTableManager(
   'aging-tbody', 'aging-table',
   'aging-count', 'aging-page-info', 'aging-page-btns', 'aging-prev', 'aging-next',
   10,
   {
-    0: null,           // Invoice ID — text
-    1: null,           // Customer  — text
-    2: null,           // Plant     — text
-    3: null,           // Collector — text
-    4: 'rawCurrent',   // Current
-    5: 'raw130',       // 1-30d
-    6: 'raw3060',      // 30-60d
-    7: 'raw6090',      // 60-90d
-    8: 'rawover90',    // >90d
-    9: 'rawtotal',     // Total
+    0: null,
+    1: null,
+    2: null,
+    3: null,
+    4: 'rawCurrent',
+    5: 'raw130',
+    6: 'raw3060',
+    7: 'raw6090',
+    8: 'rawover90',
+    9: 'rawtotal',
   }
 );
 </script>

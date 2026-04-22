@@ -98,8 +98,18 @@
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
   <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div style="font-size:12px;font-weight:700">All Customers (<span id="cust-count">{{ $rows->count() }}</span> records)</div>
-    <input type="text" id="cust-search" placeholder="Search customer…" oninput="custTable.search(this.value)"
-      style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="text" id="cust-search" placeholder="Search customer…" oninput="custTable.search(this.value)"
+        style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
+      <button onclick="exportTableCSV('cust-table', 'customers.csv')"
+        style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
+               background:#16a34a;color:#fff;border:none;border-radius:8px;
+               font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s"
+        onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+    </div>
   </div>
   <div class="table-scroll">
     <table class="data-table" id="cust-table">
@@ -188,16 +198,17 @@
 </div>
 
 @include('partials.table-manager-styles')
+@include('partials.csv-export')
 <script>
 const custTable = makeTableManager(
   'cust-tbody', 'cust-table',
   'cust-count', 'cust-page-info', 'cust-page-btns', 'cust-prev', 'cust-next',
   10,
   {
-    0:  null,          // Customer ID
-    1:  null,          // Customer Name
-    2:  null,          // Plant
-    3:  null,          // Collector
+    0:  null,
+    1:  null,
+    2:  null,
+    3:  null,
     4:  'rawcurrent',
     5:  'raw130',
     6:  'rawover60',
@@ -238,13 +249,11 @@ async function openCustDetail(customerId) {
   const loading = document.getElementById('cd-loading');
   const content = document.getElementById('cd-content');
 
-  // Reset
   document.getElementById('cd-name').textContent = 'Loading…';
   document.getElementById('cd-id').textContent   = '';
   loading.style.display = 'block';
   content.style.display = 'none';
 
-  // Show overlay
   overlay.style.display = 'flex';
   box.style.opacity     = '0';
   box.style.transform   = 'translateY(-16px)';
@@ -258,11 +267,9 @@ async function openCustDetail(customerId) {
     const data = await res.json();
     const c    = data.customer;
 
-    // Header
     document.getElementById('cd-name').textContent = c.customer_name;
     document.getElementById('cd-id').textContent   = 'Customer ID: ' + c.customer_id + (c.collector_name ? ' · Collector: ' + c.collector_name : '');
 
-    // Info grid
     document.getElementById('cd-info-grid').innerHTML =
       infoCard('PIC Name',         c.pic_name,        '👤') +
       infoCard('Email',            c.email ? `<a href="mailto:${c.email}" style="color:var(--navy)">${c.email}</a>` : null, '📧') +
@@ -271,7 +278,6 @@ async function openCustDetail(customerId) {
       infoCard('Address',          c.address,         '📍') +
       infoCard('Remark',           c.remark,          '📝');
 
-    // Plants
     const plantsEl = document.getElementById('cd-plants');
     if (data.plants && data.plants.length > 0) {
       plantsEl.innerHTML = data.plants.map(p =>
@@ -281,7 +287,6 @@ async function openCustDetail(customerId) {
       plantsEl.innerHTML = '<span style="font-size:12px;color:var(--muted)">No plants assigned</span>';
     }
 
-    // Invoices — now with collector_name column
     const invs = data.invoices;
     document.getElementById('cd-inv-count').textContent = invs.length + ' record' + (invs.length !== 1 ? 's' : '');
 
