@@ -1,73 +1,119 @@
-{{-- resources/views/partials/csv-export.blade.php --}}
-{{-- Shared CSV export utility — include after table-manager-styles on any page --}}
+{{-- resources/views/partials/xlsx-export.blade.php --}}
+{{-- Shared XLSX export utility — include after table-manager-styles on any page --}}
+{{-- Requires SheetJS (xlsx) library --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /**
- * exportTableCSV(tableId, filename)
+ * exportTableXLSX(tableId, filename)
  *
- * Exports ALL rows (not just the current page) from the given <table> element.
+ * Exports ALL rows (not just the current page) from the given <table> element
+ * as a formatted .xlsx file using SheetJS.
  * Skips the "Aging Bar", "Progress", and "Edit" columns (no useful text data).
- * Numbers in cells are exported raw (stripped of Rp / formatting).
+ * Applies header styling: bold, dark background, white text, auto column widths.
  */
-function exportTableCSV(tableId, filename) {
-  const table = document.getElementById(tableId);
-  if (!table) return;
+function exportTableXLSX(tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
 
-  // Columns to SKIP by header text
-  const SKIP_HEADERS = ['Aging Bar', 'Progress', 'Edit', ''];
+    // Columns to SKIP by header text
+    const SKIP_HEADERS = ['Aging Bar', 'Progress', 'Edit', ''];
 
-  const thead = table.querySelector('thead');
-  const tbody = table.querySelector('tbody');
-  if (!thead || !tbody) return;
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    if (!thead || !tbody) return;
 
-  // Build header row — find which column indices to keep
-  const headerCells = Array.from(thead.querySelectorAll('th'));
-  const keepCols    = [];
-  const csvHeaders  = [];
+    // Build header row — find which column indices to keep
+    const headerCells = Array.from(thead.querySelectorAll('th'));
+    const keepCols   = [];
+    const csvHeaders = [];
 
-  headerCells.forEach((th, i) => {
-    // Get clean header text (strip sort icon characters)
-    const txt = th.textContent.replace(/[↕↑↓]/g, '').trim();
-    if (!SKIP_HEADERS.includes(txt)) {
-      keepCols.push(i);
-      csvHeaders.push(csvEscape(txt));
-    }
-  });
-
-  const rows = [csvHeaders.join(',')];
-
-  // Export ALL tr rows (including those hidden by pagination)
-  Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
-    const cells = Array.from(tr.querySelectorAll('td'));
-    const rowData = keepCols.map(i => {
-      const cell = cells[i];
-      if (!cell) return '';
-      // Get visible text, strip excess whitespace
-      let text = cell.textContent.replace(/\s+/g, ' ').trim();
-      // Clean up "—" to empty
-      if (text === '—') text = '';
-      return csvEscape(text);
+    headerCells.forEach((th, i) => {
+        const txt = th.textContent.replace(/[↕↑↓]/g, '').trim();
+        if (!SKIP_HEADERS.includes(txt)) {
+            keepCols.push(i);
+            csvHeaders.push(txt);
+        }
     });
-    rows.push(rowData.join(','));
-  });
 
-  const csvContent = '\uFEFF' + rows.join('\r\n'); // BOM for Excel UTF-8
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename || 'export.csv');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+    // Build data rows array (ALL rows, including pagination-hidden ones)
+    const dataRows = [];
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll('td'));
+        const rowData = keepCols.map(i => {
+            const cell = cells[i];
+            if (!cell) return '';
+            let text = cell.textContent.replace(/\s+/g, ' ').trim();
+            if (text === '—') text = '';
+            return text;
+        });
+        dataRows.push(rowData);
+    });
 
-function csvEscape(value) {
-  const str = String(value ?? '');
-  // Wrap in quotes if contains comma, newline, or double-quote
-  if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-    return '"' + str.replace(/"/g, '""') + '"';
-  }
-  return str;
+    // Combine headers + data into a 2D array
+    const sheetData = [csvHeaders, ...dataRows];
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // --- Styling ---
+
+    // Calculate column widths based on longest content
+    const colWidths = csvHeaders.map((header, colIdx) => {
+        let maxLen = header.length;
+        dataRows.forEach(row => {
+            const cellVal = row[colIdx] ? String(row[colIdx]).length : 0;
+            if (cellVal > maxLen) maxLen = cellVal;
+        });
+        return { wch: Math.min(maxLen + 4, 40) }; // +4 padding, cap at 40
+    });
+    ws['!cols'] = colWidths;
+
+    // Style header row: bold, dark background (#1F2937), white text, centered
+    const headerStyle = {
+        font:      { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 11 },
+        fill:      { patternType: 'solid', fgColor: { rgb: '1F2937' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+            bottom: { style: 'thin', color: { rgb: '374151' } },
+            right:  { style: 'thin', color: { rgb: '374151' } },
+        }
+    };
+
+    // Style data rows: alternating light grey fill, Arial font
+    const dataStyleEven = {
+        font:      { name: 'Arial', sz: 10, color: { rgb: '111827' } },
+        fill:      { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } },
+        alignment: { vertical: 'center' },
+    };
+    const dataStyleOdd = {
+        font:      { name: 'Arial', sz: 10, color: { rgb: '111827' } },
+        fill:      { patternType: 'solid', fgColor: { rgb: 'FFFFFF' } },
+        alignment: { vertical: 'center' },
+    };
+
+    // Apply styles cell by cell
+    sheetData.forEach((row, rowIdx) => {
+        row.forEach((_, colIdx) => {
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
+            if (!ws[cellAddress]) return;
+
+            if (rowIdx === 0) {
+                ws[cellAddress].s = headerStyle;
+            } else {
+                ws[cellAddress].s = rowIdx % 2 === 0 ? dataStyleEven : dataStyleOdd;
+            }
+        });
+    });
+
+    // Set row height for header
+    ws['!rows'] = [{ hpt: 24 }]; // header row height in points
+
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft' };
+
+    // Append sheet and trigger download
+    XLSX.utils.book_append_sheet(wb, ws, 'Export');
+    XLSX.writeFile(wb, (filename || 'export').replace(/\.csv$/i, '') + '.xlsx');
 }
 </script>

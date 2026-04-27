@@ -15,16 +15,6 @@
     @endforeach
   </select>
 
-  {{-- Collector selector — locked for collectors, dropdown for admin/manager --}}
-  @if($isCollectorRole)
-    <input type="hidden" name="collector" value="{{ $selectedCollector }}">
-    <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
-                 background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;
-                 font-size:12px;font-weight:600;color:#1e40af">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-      {{ $selectedCollector }}
-    </span>
-  @else
   <select name="collector" class="filter-input" style="font-size:11px;padding:5px 10px">
     <option value="">All Collectors (Individual Lines)</option>
     <option value="__total__" {{ $selectedCollector == '__total__' ? 'selected' : '' }}>📊 Total All Collectors</option>
@@ -32,7 +22,7 @@
       <option value="{{ $c }}" {{ $selectedCollector == $c ? 'selected' : '' }}>{{ $c }}</option>
     @endforeach
   </select>
-  @endif
+  
 
   {{-- Compare checkbox — hide for collectors (keep it simple) --}}
   @if(!$isCollectorRole)

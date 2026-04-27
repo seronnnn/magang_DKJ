@@ -101,13 +101,13 @@
     <div style="display:flex;align-items:center;gap:8px">
       <input type="text" id="cust-search" placeholder="Search customer…" oninput="custTable.search(this.value)"
         style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
-      <button onclick="exportTableCSV('cust-table', 'customers.csv')"
+      <button onclick="exportTableXLSX('cust-table', 'customers.csv')"
         style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
                background:#16a34a;color:#fff;border:none;border-radius:8px;
                font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s"
         onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export CSV
+        Export XLSX
       </button>
     </div>
   </div>
@@ -126,7 +126,7 @@
         <th class="num sortable" style="white-space:nowrap">Actual <span class="sort-icon">↕</span></th>
         <th class="sortable" style="white-space:nowrap">Collection <span class="sort-icon">↕</span></th>
         <th class="num sortable" style="white-space:nowrap">SO OD <span class="sort-icon">↕</span></th>
-        @if($isAdmin)<th style="width:60px;text-align:center">Edit</th>@endif
+        <th style="width:60px;text-align:center">Edit</th>
       </tr></thead>
       <tbody id="cust-tbody">
       @foreach($rows as $r)
@@ -175,11 +175,9 @@
         <td class="num" style="{{ $r->so_with_od > 0 ? 'color:#dc2626;font-weight:700' : '' }}">
           {{ $r->so_with_od > 0 ? $r->so_with_od : '—' }}
         </td>
-        @if($isAdmin)
         <td style="text-align:center">
           <button class="btn btn-warning btn-sm" onclick='openEditModal(@json((array)$r))'>✏️</button>
         </td>
-        @endif
       </tr>
       @endforeach
       </tbody>

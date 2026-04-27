@@ -42,20 +42,9 @@ class DashboardController extends Controller
         return $latest;
     }
 
-    private function lockedCollector(): ?string
-    {
-        $user = Auth::user();
-        if ($user && $user->isCollector()) {
-            $collector = Collector::where('user_id', $user->id)->first();
-            return $collector?->name;
-        }
-        return null;
-    }
-
     private function baseQuery(Request $request, ?ArPeriod $period = null)
     {
         $period = $period ?? $this->resolvePeriod($request);
-        $locked = $this->lockedCollector();
 
         $q = DB::table('ar_records as r')
             ->join('invoice as inv',    'inv.id',        '=', 'r.invoice_id')
@@ -93,13 +82,11 @@ class DashboardController extends Controller
             $q->where('r.period_id', $period->id);
         }
 
-        if ($locked) {
-            $q->where('col.name', $locked);
-        } elseif ($request->filled('collector')) {
+        if ($request->filled('collector')) {
             $q->where('col.name', $request->collector);
         }
 
-        if (!$locked && $request->filled('plant')) {
+        if ($request->filled('plant')) {
             $q->where('p.code', $request->plant);
         }
 
@@ -160,17 +147,17 @@ class DashboardController extends Controller
             'customers' => $g->count(),
         ]);
 
-        $topCustomers    = $rows->sortByDesc('total')->take(5);
-        $lockedCollector = $this->lockedCollector();
+        $topCustomers = $rows->sortByDesc('total')->take(5);
 
         return view('dashboard.index', compact(
             'period', 'totalAR', 'totalTarget', 'totalCollected', 'collectionRate',
             'aging', 'totalSO', 'soWithOD', 'overdueCustomers',
-            'byCollector', 'byPlant', 'topCustomers', 'rows', 'lockedCollector'
+            'byCollector', 'byPlant', 'topCustomers', 'rows'
         ) + [
-            'plants'     => $this->plants(),
-            'collectors' => $this->collectors(),
-            'periods'    => $this->periods(),
+            'plants'          => $this->plants(),
+            'collectors'      => $this->collectors(),
+            'periods'         => $this->periods(),
+            'lockedCollector' => null,
         ]);
     }
 
@@ -193,7 +180,7 @@ class DashboardController extends Controller
             'plants'          => $this->plants(),
             'collectors'      => $this->collectors(),
             'periods'         => $this->periods(),
-            'lockedCollector' => $this->lockedCollector(),
+            'lockedCollector' => null,
         ]);
     }
 
@@ -232,7 +219,7 @@ class DashboardController extends Controller
             'plants'          => $this->plants(),
             'collectors'      => $this->collectors(),
             'periods'         => $this->periods(),
-            'lockedCollector' => $this->lockedCollector(),
+            'lockedCollector' => null,
         ]);
     }
 
@@ -254,7 +241,7 @@ class DashboardController extends Controller
             'plants'          => $this->plants(),
             'collectors'      => $this->collectors(),
             'periods'         => $this->periods(),
-            'lockedCollector' => $this->lockedCollector(),
+            'lockedCollector' => null,
         ]);
     }
 
@@ -288,7 +275,7 @@ class DashboardController extends Controller
             'plants'          => $this->plants(),
             'collectors'      => $this->collectors(),
             'periods'         => $this->periods(),
-            'lockedCollector' => $this->lockedCollector(),
+            'lockedCollector' => null,
         ]);
     }
 
@@ -348,22 +335,14 @@ class DashboardController extends Controller
     }
 
     /* ────────────────────────────────────────────────────────────
-     * History — admin & manager only
+     * History
      * ──────────────────────────────────────────────────────────── */
 
     public function history(Request $request)
     {
-        // History is now open to all roles.
-        // Collectors are locked to their own data; admin/manager can see all.
-        $lockedCollector = $this->lockedCollector();
-
-        // Cast to string so downstream methods never receive null
-        $selectedCollector = $lockedCollector
-            ? $lockedCollector
-            : (string) ($request->input('collector') ?? '');
-
+        $selectedCollector = (string) ($request->input('collector') ?? '');
         $selectedYear      = (int) $request->input('year', date('Y'));
-        $compareMode       = (!$lockedCollector) && $request->boolean('compare');
+        $compareMode       = $request->boolean('compare');
         $compareYear       = (int) $request->input('compare_year', $selectedYear - 1);
 
         $availableYears = ArPeriod::selectRaw('YEAR(period_month) as yr')
@@ -371,12 +350,10 @@ class DashboardController extends Controller
 
         $collectorNames = Collector::orderBy('name')->pluck('name')->toArray();
 
-        // Primary year datasets
         $primaryData   = $this->buildHistoryDatasets($selectedYear, $selectedCollector, $collectorNames);
         $periodLabels  = $primaryData['labels'];
         $chartDatasets = $primaryData['datasets'];
 
-        // Compare year datasets (if enabled — admin/manager only)
         if ($compareMode) {
             $compareData = $this->buildHistoryDatasets($compareYear, $selectedCollector, $collectorNames, true);
             if (empty($periodLabels) && !empty($compareData['labels'])) {
@@ -402,17 +379,10 @@ class DashboardController extends Controller
             'compareMode'       => $compareMode,
             'compareYear'       => $compareYear,
             'periods'           => $this->periods(),
-            'lockedCollector'   => $lockedCollector,
+            'lockedCollector'   => null,
         ]);
     }
 
-    /**
-     * Build Chart.js line datasets for a single year.
-     *
-     * ''          → show each collector as its own individual line
-     * '__total__' → aggregate ALL collectors into ONE "Total All Collectors" line
-     * 'Miya'      → show only that collector's line
-     */
     private function buildHistoryDatasets(
         int     $year,
         string  $selectedCollector,
@@ -429,15 +399,11 @@ class DashboardController extends Controller
 
         $datasets = [];
 
-        // Determine what lines to render
         if ($selectedCollector === '__total__') {
-            // Single combined "Total" line — no filterBy
             $items = [['label' => 'Total All Collectors', 'filterBy' => null]];
         } elseif ($selectedCollector !== '') {
-            // Single named collector
             $items = [['label' => $selectedCollector, 'filterBy' => $selectedCollector]];
         } else {
-            // All collectors individually
             $items = array_map(fn($n) => ['label' => $n, 'filterBy' => $n], $collectorNames);
         }
 
@@ -500,15 +466,8 @@ class DashboardController extends Controller
         return ['labels' => $labels, 'datasets' => $datasets];
     }
 
-    /**
-     * Build full-year summary rows for the table below the chart.
-     * ''          → all collectors individually
-     * '__total__' → one combined row labelled "Total All Collectors"
-     * specific    → filtered to that collector only
-     */
     private function buildHistorySummary(int $year, string $selectedCollector): \Illuminate\Support\Collection
     {
-        // __total__ mode: aggregate everything into one row
         if ($selectedCollector === '__total__') {
             $row = DB::table('ar_records as r')
                 ->join('invoice as inv',    'inv.id', '=', 'r.invoice_id')
