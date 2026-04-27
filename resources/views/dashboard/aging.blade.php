@@ -5,6 +5,9 @@
 @php
   $totalBucket = array_sum($buckets);
   $isAdmin     = Auth::user()->isAdmin();
+  // Export meta
+  $exportPeriod    = isset($period) && $period ? $period->period_label : 'All Periods';
+  $exportCollector = request('collector') ?: 'All Collectors';
 @endphp
 
 @section('topbar-actions')
@@ -62,7 +65,11 @@
     <div style="display:flex;align-items:center;gap:8px">
       <input type="text" id="aging-search" placeholder="Search customer…" oninput="agingTable.search(this.value)"
         style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;width:200px">
-      <button onclick="exportTableXLSX('aging-table', 'ar_aging.csv')"
+      <button onclick="exportTableXLSX('aging-table', 'ar_aging', {
+          pageTitle: 'AR Aging',
+          period: '{{ $exportPeriod }}',
+          collector: '{{ $exportCollector }}'
+        })"
         style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
                background:#16a34a;color:#fff;border:none;border-radius:8px;
                font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s"

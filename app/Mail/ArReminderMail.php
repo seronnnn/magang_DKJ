@@ -13,12 +13,15 @@ class ArReminderMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public object $invoice;
+    public object $invoice;          // kept for backward-compat (first invoice)
+    public array  $invoices;         // all invoices to show in the email
     public string $collectorName;
+    public float  $totalAR;
+    public float  $totalPaid;
+    public float  $totalRemaining;
 
     /**
      * Map collector name (case-insensitive) → sender Gmail address.
-     * Add or edit entries here as needed.
      */
     private const COLLECTOR_EMAILS = [
         'miya'  => 'testing_miya@gmail.com',
@@ -27,44 +30,55 @@ class ArReminderMail extends Mailable
         'viona' => 'testing_viona@gmail.com',
     ];
 
-    public function __construct(object $invoice, string $collectorName)
+    /**
+     * @param object|array $invoiceOrInvoices  Single invoice object OR array of invoice objects
+     * @param string       $collectorName
+     */
+    public function __construct(object|array $invoiceOrInvoices, string $collectorName)
     {
-        $this->invoice       = $invoice;
         $this->collectorName = $collectorName;
+
+        if (is_array($invoiceOrInvoices)) {
+            $this->invoices = $invoiceOrInvoices;
+            $this->invoice  = $invoiceOrInvoices[0];   // first invoice for envelope subject
+        } else {
+            $this->invoices = [$invoiceOrInvoices];
+            $this->invoice  = $invoiceOrInvoices;
+        }
+
+        // Pre-compute totals
+        $this->totalAR        = array_sum(array_column($this->invoices, 'total_ar'));
+        $this->totalPaid      = array_sum(array_column($this->invoices, 'ar_actual'));
+        $this->totalRemaining = max(0, $this->totalAR - $this->totalPaid);
     }
 
-    /**
-     * Resolve the sender email for the given collector name.
-     * Falls back to the default MAIL_FROM_ADDRESS if no match is found.
-     */
     private function senderEmail(): string
     {
         $key = strtolower(trim($this->collectorName));
-
-        // Try exact key first
         if (isset(self::COLLECTOR_EMAILS[$key])) {
             return self::COLLECTOR_EMAILS[$key];
         }
-
-        // Then check if the collector name *contains* a known key (e.g. "Miya Collector" → miya)
         foreach (self::COLLECTOR_EMAILS as $name => $email) {
             if (str_contains($key, $name)) {
                 return $email;
             }
         }
-
-        // Fallback to the default configured sender
         return config('mail.from.address');
     }
 
     public function envelope(): Envelope
     {
+        $count   = count($this->invoices);
+        $subject = $count > 1
+            ? "Invoice Due Date Reminder ({$count} Invoices) – {$this->invoice->customer_name}"
+            : "Invoice Due Date Reminder #{$this->invoice->invoice_id} – {$this->invoice->customer_name}";
+
         return new Envelope(
             from: new Address(
                 $this->senderEmail(),
                 $this->collectorName . ' – PT. Dunia Kimia Jaya'
             ),
-            subject: 'Pengingat Jatuh Tempo Invoice #' . $this->invoice->invoice_id . ' – ' . $this->invoice->customer_name,
+            subject: $subject,
         );
     }
 
