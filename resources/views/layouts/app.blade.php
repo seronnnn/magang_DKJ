@@ -49,8 +49,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
 /* ─── Main ── */
 #main{margin-left:var(--sidebar-w);min-height:100vh}
 .topbar{
-  height:56px;background:var(--surface);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;padding:0 24px;
+  height:auto;min-height:56px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:8px 24px;
   position:sticky;top:0;z-index:50;box-shadow:var(--shadow);gap:12px;flex-wrap:wrap;
 }
 
@@ -143,7 +143,24 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
   #sidebar.open{transform:translateX(0)}
   #sidebar-overlay.open{display:block}
   #main{margin-left:0}
-  .topbar{padding:0 16px 0 60px;height:auto;min-height:56px;padding-top:8px;padding-bottom:8px}
+  .topbar{padding:8px 16px 8px 60px}
+}
+
+/* ─── Period picker ── */
+.period-picker{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+}
+.period-picker .filter-input{font-size:11px;padding:5px 8px}
+.period-search-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 14px;background:var(--navy);color:#fff;
+  border:none;border-radius:8px;font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.period-search-btn:hover{background:#0d1f3c}
+.period-label-badge{
+  font-size:10px;color:#94afc8;background:rgba(255,255,255,.08);
+  border-radius:5px;padding:2px 7px;font-weight:600;
 }
 </style>
 </head>
@@ -229,20 +246,63 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
     <div style="font-size:14px;font-weight:700;flex-shrink:0">@yield('page-title','Dashboard Overview')</div>
 
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;flex:1">
+
+      {{-- ── Period picker: month + year + Search ── --}}
       @if(isset($periods) && $periods->count())
-      <form method="GET" action="{{ request()->url() }}" id="period-form" style="display:flex;align-items:center;gap:6px">
-        @if(request('plant'))    <input type="hidden" name="plant"     value="{{ request('plant') }}">@endif
-        @if(request('collector'))<input type="hidden" name="collector" value="{{ request('collector') }}">@endif
-        @if(request('search'))  <input type="hidden" name="search"    value="{{ request('search') }}">@endif
-        <select name="period_id" class="filter-input" style="font-size:11px;padding:5px 10px"
-                onchange="document.getElementById('period-form').submit()">
-          @foreach($periods as $p)
-            <option value="{{ $p->id }}"
-              {{ (isset($period) && $period && $period->id == $p->id) ? 'selected' : '' }}>
-              {{ $p->period_label }}
-            </option>
-          @endforeach
-        </select>
+      @php
+        /* Build unique years and months from available periods */
+        $periodYears  = $periods->map(fn($p) => \Carbon\Carbon::parse($p->period_month)->year)->unique()->sortDesc()->values();
+        $periodMonths = collect([
+          1=>'January',2=>'February',3=>'March',4=>'April',
+          5=>'May',6=>'June',7=>'July',8=>'August',
+          9=>'September',10=>'October',11=>'November',12=>'December',
+        ]);
+
+        /* Determine currently-selected month and year */
+        $activePeriodMonth = isset($period) && $period ? \Carbon\Carbon::parse($period->period_month)->month : null;
+        $activePeriodYear  = isset($period) && $period ? \Carbon\Carbon::parse($period->period_month)->year  : null;
+
+        /* Encode all periods as JSON so JS can find the matching period_id */
+        $periodsJson = $periods->map(fn($p) => [
+          'id'    => $p->id,
+          'month' => (int)\Carbon\Carbon::parse($p->period_month)->month,
+          'year'  => (int)\Carbon\Carbon::parse($p->period_month)->year,
+          'label' => $p->period_label,
+        ])->values()->toJson();
+      @endphp
+
+      <form id="period-search-form" method="GET" action="{{ request()->url() }}"
+            style="display:contents">
+        {{-- Preserve other active filters --}}
+        @if(request('plant'))     <input type="hidden" name="plant"     value="{{ request('plant') }}">@endif
+        @if(request('collector')) <input type="hidden" name="collector" value="{{ request('collector') }}">@endif
+        @if(request('search'))   <input type="hidden" name="search"    value="{{ request('search') }}">@endif
+        {{-- Hidden period_id — filled by JS when Search is clicked --}}
+        <input type="hidden" name="period_id" id="period-id-input" value="{{ $activePeriodYear && $activePeriodMonth ? ($period?->id ?? '') : '' }}">
+
+        <div class="period-picker">
+          {{-- Month selector --}}
+          <select id="period-month-select" class="filter-input"
+                  style="font-size:11px;padding:5px 8px;min-width:110px">
+            @foreach($periodMonths as $num => $name)
+              <option value="{{ $num }}" {{ $activePeriodMonth == $num ? 'selected' : '' }}>{{ $name }}</option>
+            @endforeach
+          </select>
+
+          {{-- Year selector --}}
+          <select id="period-year-select" class="filter-input"
+                  style="font-size:11px;padding:5px 8px;min-width:70px">
+            @foreach($periodYears as $yr)
+              <option value="{{ $yr }}" {{ $activePeriodYear == $yr ? 'selected' : '' }}>{{ $yr }}</option>
+            @endforeach
+          </select>
+
+          {{-- Search button --}}
+          <button type="button" class="period-search-btn" onclick="submitPeriodSearch()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Search
+          </button>
+        </div>
       </form>
       @endif
 
@@ -322,12 +382,68 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
 </div>
 
 @stack('scripts')
+@php
+    $jsPeriods = isset($periods) ? $periods->map(fn($p) => [
+        'id'    => $p->id,
+        'month' => (int)\Carbon\Carbon::parse($p->period_month)->month,
+        'year'  => (int)\Carbon\Carbon::parse($p->period_month)->year,
+    ])->values() : [];
+@endphp
 <script>
+const ALL_PERIODS = @json($jsPeriods);
+
+function submitPeriodSearch() {
+  const month = parseInt(document.getElementById('period-month-select')?.value);
+  const year  = parseInt(document.getElementById('period-year-select')?.value);
+  const match = ALL_PERIODS.find(p => p.month === month && p.year === year);
+
+  if (!match) {
+    // No matching period — still submit, controller will fall back to latest
+    document.getElementById('period-id-input').value = '';
+  } else {
+    document.getElementById('period-id-input').value = match.id;
+  }
+  document.getElementById('period-search-form').submit();
+}
+
+/* Allow pressing Enter in the selects to trigger search */
+['period-month-select','period-year-select'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') submitPeriodSearch(); });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   Filters partial also needs to preserve period_id.
+   The filters partial form uses request()->url() as action,
+   so we inject period_id into it after the DOM loads.
+   ───────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+  const activePeriodId = '{{ isset($period) && $period ? $period->id : "" }}';
+  if (!activePeriodId) return;
+
+  // Any filter form that does NOT already have a period_id hidden input
+  document.querySelectorAll('form[method="GET"]').forEach(form => {
+    if (form.id === 'period-search-form') return;
+    if (form.querySelector('[name="period_id"]')) return; // already has one
+    const inp = document.createElement('input');
+    inp.type  = 'hidden';
+    inp.name  = 'period_id';
+    inp.value = activePeriodId;
+    form.appendChild(inp);
+  });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   Sidebar toggle
+   ───────────────────────────────────────────────────────────── */
 function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebar-overlay').classList.toggle('open');
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Edit modal
+   ───────────────────────────────────────────────────────────── */
 function openEditModal(rowData){
   document.getElementById('edit-row-id').value = rowData.id;
   document.getElementById('edit-customer-name').textContent = rowData.customer_name;

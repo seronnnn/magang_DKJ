@@ -122,7 +122,7 @@ class ReminderController extends Controller
     }
 
     /**
-     * Send a reminder email for a SINGLE invoice (used by the single-row action button).
+     * Send a reminder email for a SINGLE invoice.
      */
     public function sendEmail(Request $request, int $invoiceId)
     {
@@ -147,11 +147,27 @@ class ReminderController extends Controller
         }
     }
 
+    /**
+     * Generate a WhatsApp link for one OR multiple invoices.
+     *
+     * For a single invoice, the message is the same as before.
+     * For multiple invoices (passed via invoice_ids[] query param),
+     * the message consolidates them into a numbered list.
+     */
     public function whatsappLink(Request $request, int $invoiceId)
     {
         $collector = $this->getCollector();
         if (!$collector) abort(403);
 
+        // Check if additional invoice IDs were passed (for multi-invoice WA from the modal)
+        $extraIds = $request->input('invoice_ids', []);
+
+        if (!empty($extraIds) && count($extraIds) > 1) {
+            // Multi-invoice: use bulkRemind logic but targeted
+            return $this->buildWhatsAppBulkResponse($extraIds, $collector);
+        }
+
+        // Single invoice
         $invoice = $this->fetchInvoiceForCollector($invoiceId, $collector->id);
 
         if (!$invoice) {
@@ -162,43 +178,14 @@ class ReminderController extends Controller
             return response()->json(['success' => false, 'message' => 'No WhatsApp number on record for this customer.'], 422);
         }
 
-        $dueDate        = \Carbon\Carbon::parse($invoice->due_date)->format('d F Y');
-        $amount         = 'Rp ' . number_format($invoice->total_ar, 0, ',', '.');
-        $pic            = $invoice->pic_name ? "Dear {$invoice->pic_name}" : "Dear Finance Team";
-        $company        = config('app.name', 'PT. Dunia Kimia Jaya');
-        $collector_name = $collector->name;
+        $url = $this->buildSingleInvoiceWaUrl($invoice, $collector->name);
 
-        $message = <<<MSG
-        {$pic},
-
-        Greetings from {$company}.
-
-        We would like to remind you that the invoice for *{$invoice->customer_name}* (Invoice #{$invoice->invoice_id}) amounting to *{$amount}* is due on *{$dueDate}*.
-
-        Please process payment before the due date to avoid any delays.
-
-        If payment has already been made, kindly confirm with us.
-
-        Thank you for your cooperation.
-
-        Best regards,
-        {$collector_name}
-        {$company}
-        MSG;
-
-        $phone = preg_replace('/\D/', '', $invoice->whatsapp_number);
-        if (str_starts_with($phone, '0')) {
-            $phone = '62' . substr($phone, 1);
-        }
-
-        $url = 'https://wa.me/' . $phone . '?text=' . rawurlencode(trim($message));
-
-        return response()->json(['success' => true, 'url' => $url, 'phone' => $phone]);
+        return response()->json(['success' => true, 'url' => $url, 'phone' => $this->normalisePhone($invoice->whatsapp_number)]);
     }
 
     /**
      * Bulk send — groups invoice IDs by customer and sends ONE email per customer
-     * containing all selected invoices for that customer.
+     * OR generates ONE WhatsApp message per customer with all invoices listed.
      */
     public function bulkRemind(Request $request)
     {
@@ -245,7 +232,6 @@ class ReminderController extends Controller
                 }
 
                 try {
-                    // Pass ALL invoices for this customer as an array
                     Mail::to($first->email)->send(
                         new ArReminderMail($custInvoices->values()->all(), $collector->name)
                     );
@@ -255,24 +241,24 @@ class ReminderController extends Controller
                 }
             }
         } else {
-            // WhatsApp: one link per invoice (WA is inherently per-conversation)
-            foreach ($invoices as $invoice) {
-                if (!empty($invoice->whatsapp_number)) {
-                    $dueDate  = \Carbon\Carbon::parse($invoice->due_date)->format('d F Y');
-                    $amount   = 'Rp ' . number_format($invoice->total_ar, 0, ',', '.');
-                    $pic      = $invoice->pic_name ? "Dear {$invoice->pic_name}" : "Dear Finance Team";
-                    $company  = config('app.name', 'PT. Dunia Kimia Jaya');
-                    $message  = "{$pic},\n\nReminder: Invoice *#{$invoice->invoice_id}* for *{$invoice->customer_name}* amounting to *{$amount}* is due on *{$dueDate}*.\n\nPlease process payment promptly.\n\nBest regards,\n{$collector->name} – {$company}";
-                    $phone    = preg_replace('/\D/', '', $invoice->whatsapp_number);
-                    if (str_starts_with($phone, '0')) $phone = '62' . substr($phone, 1);
-                    $waLinks[] = [
-                        'customer' => $invoice->customer_name,
-                        'url'      => 'https://wa.me/' . $phone . '?text=' . rawurlencode($message),
-                    ];
-                    $sent++;
-                } else {
-                    $skipped++;
+            // WhatsApp: ONE message per CUSTOMER containing ALL their selected invoices
+            $byCustomer = $invoices->groupBy('customer_code');
+
+            foreach ($byCustomer as $customerCode => $custInvoices) {
+                $first = $custInvoices->first();
+
+                if (empty($first->whatsapp_number)) {
+                    $skipped += $custInvoices->count();
+                    continue;
                 }
+
+                $url = $this->buildMultiInvoiceWaUrl($custInvoices->values()->all(), $collector->name);
+
+                $waLinks[] = [
+                    'customer' => $first->customer_name,
+                    'url'      => $url,
+                ];
+                $sent += $custInvoices->count();
             }
         }
 
@@ -285,7 +271,168 @@ class ReminderController extends Controller
         ]);
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    /**
+     * Build a WA URL for a SINGLE invoice.
+     */
+    private function buildSingleInvoiceWaUrl(object $invoice, string $collectorName): string
+    {
+        $dueDate = \Carbon\Carbon::parse($invoice->due_date)->format('d F Y');
+        $amount  = 'Rp ' . number_format($invoice->total_ar, 0, ',', '.');
+        $pic     = $invoice->pic_name ? "Dear {$invoice->pic_name}" : "Dear Finance Team";
+        $company = config('app.name', 'PT. Dunia Kimia Jaya');
+
+        $message = <<<MSG
+{$pic},
+
+Greetings from {$company}.
+
+We would like to remind you that the invoice for *{$invoice->customer_name}* (Invoice #{$invoice->invoice_id}) amounting to *{$amount}* is due on *{$dueDate}*.
+
+Please process payment before the due date to avoid any delays.
+
+If payment has already been made, kindly confirm with us.
+
+Thank you for your cooperation.
+
+Best regards,
+{$collectorName}
+{$company}
+MSG;
+
+        $phone = $this->normalisePhone($invoice->whatsapp_number);
+        return 'https://wa.me/' . $phone . '?text=' . rawurlencode(trim($message));
+    }
+
+    /**
+     * Build a WA URL for MULTIPLE invoices belonging to the SAME customer —
+     * all consolidated into one message with a numbered list.
+     */
+    private function buildMultiInvoiceWaUrl(array $invoices, string $collectorName): string
+    {
+        $first   = $invoices[0];
+        $pic     = $first->pic_name ? "Dear {$first->pic_name}" : "Dear Finance Team";
+        $company = config('app.name', 'PT. Dunia Kimia Jaya');
+
+        // Build the invoice list
+        $invoiceLines = '';
+        $grandTotal   = 0;
+        foreach ($invoices as $i => $inv) {
+            $num      = $i + 1;
+            $dueDate  = \Carbon\Carbon::parse($inv->due_date)->format('d M Y');
+            $amount   = 'Rp ' . number_format($inv->total_ar, 0, ',', '.');
+            $paid     = $inv->ar_actual > 0 ? 'Rp ' . number_format($inv->ar_actual, 0, ',', '.') : '-';
+            $sisa     = max(0, $inv->total_ar - $inv->ar_actual);
+            $sisaFmt  = $sisa > 0 ? 'Rp ' . number_format($sisa, 0, ',', '.') : 'Settled ✓';
+            $grandTotal += $sisa;
+
+            $invoiceLines .= "{$num}. *Invoice #{$inv->invoice_id}*\n";
+            $invoiceLines .= "   Due Date : {$dueDate}\n";
+            $invoiceLines .= "   Amount   : {$amount}\n";
+            $invoiceLines .= "   Paid     : {$paid}\n";
+            $invoiceLines .= "   Balance  : {$sisaFmt}\n";
+            if ($i < count($invoices) - 1) {
+                $invoiceLines .= "\n";
+            }
+        }
+
+        $totalOutstanding = $grandTotal > 0
+            ? 'Rp ' . number_format($grandTotal, 0, ',', '.')
+            : 'All settled ✓';
+
+        $invoiceCount = count($invoices);
+        $invoiceWord  = $invoiceCount === 1 ? 'invoice' : 'invoices';
+
+        $message = <<<MSG
+{$pic},
+
+Greetings from {$company}.
+
+We would like to remind you regarding *{$invoiceCount} outstanding {$invoiceWord}* for *{$first->customer_name}*:
+
+{$invoiceLines}
+*Total Outstanding: {$totalOutstanding}*
+
+Please process payment for each invoice before its respective due date to avoid any delays.
+
+If payment has already been made, kindly confirm with us.
+
+Thank you for your cooperation.
+
+Best regards,
+{$collectorName}
+{$company}
+MSG;
+
+        $phone = $this->normalisePhone($first->whatsapp_number);
+        return 'https://wa.me/' . $phone . '?text=' . rawurlencode(trim($message));
+    }
+
+    /**
+     * Build a WhatsApp bulk response for the modal's multi-select WA button.
+     */
+    private function buildWhatsAppBulkResponse(array $invoiceIds, Collector $collector): \Illuminate\Http\JsonResponse
+    {
+        $invoices = DB::table('invoice as inv')
+            ->join('customers as c',    'c.id',   '=', 'inv.customer_id')
+            ->join('collectors as col', 'col.id', '=', 'c.collector_id')
+            ->leftJoin('ar_records as r', 'r.invoice_id', '=', 'inv.id')
+            ->whereIn('inv.id', $invoiceIds)
+            ->where('col.id', $collector->id)
+            ->select([
+                'inv.id as invoice_id', 'inv.due_date',
+                'c.customer_name', 'c.whatsapp_number', 'c.pic_name',
+                'c.customer_id as customer_code',
+                DB::raw('COALESCE(r.total_ar, 0) as total_ar'),
+                DB::raw('COALESCE(r.ar_actual, 0) as ar_actual'),
+            ])
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'No matching invoices found.'], 404);
+        }
+
+        // All belong to same customer (modal context), group just in case
+        $byCustomer = $invoices->groupBy('customer_code');
+        $waLinks    = [];
+
+        foreach ($byCustomer as $custInvoices) {
+            $first = $custInvoices->first();
+            if (empty($first->whatsapp_number)) continue;
+
+            $url = count($custInvoices) === 1
+                ? $this->buildSingleInvoiceWaUrl($first, $collector->name)
+                : $this->buildMultiInvoiceWaUrl($custInvoices->values()->all(), $collector->name);
+
+            $waLinks[] = [
+                'customer' => $first->customer_name,
+                'url'      => $url,
+            ];
+        }
+
+        return response()->json([
+            'success'  => true,
+            'sent'     => $invoices->count(),
+            'skipped'  => 0,
+            'type'     => 'whatsapp',
+            'wa_links' => $waLinks,
+            // For single-WA modal: provide url and preview directly
+            'url'      => $waLinks[0]['url'] ?? null,
+        ]);
+    }
+
+    /**
+     * Normalise a phone number to international format starting with country code.
+     */
+    private function normalisePhone(string $raw): string
+    {
+        $phone = preg_replace('/\D/', '', $raw);
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        }
+        return $phone;
+    }
 
     private function fetchInvoiceForCollector(int $invoiceId, int $collectorId): ?object
     {

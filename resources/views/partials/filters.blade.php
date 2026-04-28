@@ -3,12 +3,12 @@
   $currentPeriodId = isset($period) && $period ? $period->id : request('period_id');
 @endphp
 <form method="GET" action="{{ request()->url() }}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-  {{-- Always preserve period --}}
+  {{-- Always preserve the active period --}}
   @if($currentPeriodId)
     <input type="hidden" name="period_id" value="{{ $currentPeriodId }}">
   @endif
 
-  {{-- Plant filter — visible for all roles --}}
+  {{-- Plant filter --}}
   <select name="plant" class="filter-input" onchange="this.form.submit()">
     <option value="">All Plants</option>
     @foreach($plants as $p)
@@ -16,7 +16,7 @@
     @endforeach
   </select>
 
-  {{-- Collector filter — visible for all roles --}}
+  {{-- Collector filter --}}
   <select name="collector" class="filter-input" onchange="this.form.submit()">
     <option value="">All Collectors</option>
     @foreach($collectors as $c)
@@ -24,7 +24,7 @@
     @endforeach
   </select>
 
-  {{-- Clear filters --}}
+  {{-- Clear filters — keeps period --}}
   @if(request('plant') || request('collector'))
     <a href="{{ request()->url() }}{{ $currentPeriodId ? '?period_id='.$currentPeriodId : '' }}"
        class="btn btn-ghost" style="font-size:11px">✕ Clear</a>
