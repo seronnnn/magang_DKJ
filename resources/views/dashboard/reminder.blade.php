@@ -196,19 +196,12 @@
       </div>
     </div>
 
-    {{-- WA results (for bulk WA from modal) --}}
-    <div id="crd-wa-results" style="display:none;margin-top:14px;border:1px solid #bbf7d0;
-         background:#f0fdf4;border-radius:10px;padding:14px;max-height:180px;overflow-y:auto">
-      <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:10px;
-                  text-transform:uppercase;letter-spacing:.06em">WhatsApp Links — click to open</div>
-      <div id="crd-wa-links"></div>
-    </div>
-
     <div style="display:flex;justify-content:flex-end;margin-top:18px">
       <button onclick="closeCustReminderModal()" class="btn btn-ghost">Close</button>
     </div>
   </div>
 </div>
+{{-- ════════ END CUSTOMER DETAIL MODAL ════════ --}}
 
 {{-- ════════ BULK MODAL ════════ --}}
 <div id="bulk-modal-overlay" onclick="if(event.target===this) closeBulkModal()"
@@ -286,12 +279,6 @@
       No customers match your search.
     </div>
 
-    <div id="bulk-wa-results" style="display:none;margin-top:12px;border:1px solid #bbf7d0;
-         background:#f0fdf4;border-radius:10px;padding:14px;max-height:200px;overflow-y:auto">
-      <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:10px;
-                  text-transform:uppercase;letter-spacing:.06em">WhatsApp Links — click to open</div>
-      <div id="bulk-wa-links"></div>
-    </div>
     <div id="bulk-modal-feedback" style="display:none;margin-top:12px;padding:12px 16px;
          border-radius:9px;font-size:13px;font-weight:600"></div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
@@ -309,25 +296,50 @@
 <div id="wa-modal-overlay" onclick="if(event.target===this) closeWaModal()"
      style="display:none;position:fixed;inset:0;background:rgba(15,31,54,.5);z-index:500;
             align-items:center;justify-content:center;backdrop-filter:blur(4px)">
-  <div style="background:#fff;border-radius:16px;padding:28px;width:440px;max-width:96vw;
+  <div style="background:#fff;border-radius:16px;padding:28px;width:480px;max-width:96vw;max-height:90vh;
+              display:flex;flex-direction:column;
               box-shadow:0 20px 60px rgba(15,31,54,.25)">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+
+    {{-- Header --}}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-shrink:0">
       <div style="width:38px;height:38px;background:#dcfce7;border-radius:10px;
                   display:flex;align-items:center;justify-content:center;font-size:20px">💬</div>
-      <div>
+      <div style="flex:1;min-width:0">
         <div style="font-size:15px;font-weight:800;color:var(--navy)">Send WhatsApp</div>
-        <div id="wa-modal-customer" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+        <div id="wa-modal-customer" style="font-size:11px;color:var(--muted);margin-top:2px;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
       </div>
       <button onclick="closeWaModal()"
-        style="margin-left:auto;background:none;border:1px solid var(--border);
+        style="flex-shrink:0;background:none;border:1px solid var(--border);
                border-radius:8px;width:30px;height:30px;cursor:pointer;
                font-size:16px;color:var(--muted);display:flex;align-items:center;justify-content:center">×</button>
     </div>
-    <div style="background:#075e54;border-radius:12px;padding:18px;margin-bottom:16px">
-      <div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px;font-weight:600">Message Preview</div>
-      <div id="wa-modal-preview" style="font-size:12px;color:#fff;line-height:1.7;white-space:pre-wrap"></div>
+
+    {{-- Invoice summary badges (shown for multi-invoice) --}}
+    <div id="wa-modal-summary" style="display:none;margin-bottom:14px;flex-shrink:0">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:8px">Selected Invoices</div>
+      <div id="wa-modal-invoice-badges" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <div id="wa-modal-total-bar" style="margin-top:10px;padding:10px 14px;background:#f0fdf4;
+           border:1px solid #bbf7d0;border-radius:8px;display:flex;align-items:center;
+           justify-content:space-between;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#15803d">Total Outstanding</span>
+        <span id="wa-modal-grand-total" style="font-size:14px;font-weight:800;color:#15803d;
+              font-family:'DM Mono',monospace"></span>
+      </div>
     </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
+
+    {{-- Message preview --}}
+    <div style="background:#075e54;border-radius:12px;padding:18px;margin-bottom:16px;flex:1;overflow-y:auto;min-height:0">
+      <div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px;font-weight:600">
+        Message Preview
+      </div>
+      <div id="wa-modal-preview"
+           style="font-size:12px;color:#fff;line-height:1.7;white-space:pre-wrap;word-break:break-word"></div>
+    </div>
+
+    {{-- Actions --}}
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-shrink:0">
       <button onclick="closeWaModal()" class="btn btn-ghost" style="font-size:12px">Cancel</button>
       <a id="wa-open-link" href="#" target="_blank" onclick="closeWaModal()"
         style="padding:9px 18px;background:#16a34a;color:#fff;border-radius:9px;
@@ -583,6 +595,7 @@ $groupedForJs = $grouped->keyBy('customer_code')->map(function($c) use ($collect
         'has_email'       => $c->has_email,
         'has_wa'          => $c->has_wa,
         'invoice_ids'     => $c->invoice_ids,
+        'collector_name'  => $collectorName,
         'invoices'        => $c->invoices->map(function($inv) use ($collectorName) {
             return [
                 'invoice_id'     => $inv->invoice_id,
@@ -648,6 +661,119 @@ function fmtIDR(v) {
   return 'Rp '+Number(v).toLocaleString('id-ID');
 }
 
+/* ─── WA modal helpers ───────────────────────────────────── */
+/**
+ * Show the WA preview modal.
+ *
+ * @param {string} customerLabel  - name shown in the header subtitle
+ * @param {string} previewText    - full pre-built message text
+ * @param {string} waUrl          - the wa.me URL
+ * @param {Array}  invoices       - array of invoice objects (for badge list)
+ */
+function showWaModal(customerLabel, previewText, waUrl, invoices) {
+  document.getElementById('wa-modal-customer').textContent = customerLabel;
+  document.getElementById('wa-modal-preview').textContent  = previewText;
+  document.getElementById('wa-open-link').href             = waUrl;
+
+  // Invoice badges + grand total (only shown when multiple invoices)
+  const summaryEl  = document.getElementById('wa-modal-summary');
+  const badgesEl   = document.getElementById('wa-modal-invoice-badges');
+  const grandTotEl = document.getElementById('wa-modal-grand-total');
+
+  if (invoices && invoices.length > 1) {
+    let grandTotal = 0;
+    badgesEl.innerHTML = invoices.map(inv => {
+      const balance = Math.max(0, inv.total_ar - inv.ar_actual);
+      grandTotal   += balance;
+      const dueDate = inv.due_date
+        ? new Date(inv.due_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })
+        : '?';
+      const isOverdue = inv.is_overdue;
+      return `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+                border-radius:99px;font-size:11px;font-weight:700;
+                background:${isOverdue ? '#fee2e2' : '#dbeafe'};
+                color:${isOverdue ? '#991b1b' : '#1e40af'}">
+        #${inv.invoice_id}
+        <span style="font-size:9px;opacity:.75">${dueDate}</span>
+      </span>`;
+    }).join('');
+    grandTotEl.textContent = grandTotal > 0
+      ? 'Rp ' + Number(grandTotal).toLocaleString('id-ID')
+      : 'All Settled ✓';
+    summaryEl.style.display = 'block';
+  } else {
+    summaryEl.style.display = 'none';
+  }
+
+  document.getElementById('wa-modal-overlay').style.display = 'flex';
+}
+
+function closeWaModal() {
+  document.getElementById('wa-modal-overlay').style.display = 'none';
+}
+
+/* ─── Build WA preview text locally (mirrors server logic) ── */
+function buildWaPreviewText(cust, selectedInvoices, collectorName) {
+  const company = 'PT. Dunia Kimia Jaya';
+  const pic     = cust.pic_name ? `Dear ${cust.pic_name}` : 'Dear Finance Team';
+  const lines   = [];
+
+  lines.push(`${pic},`);
+  lines.push('');
+  lines.push(`Greetings from ${company}.`);
+  lines.push('');
+
+  if (selectedInvoices.length === 1) {
+    const inv     = selectedInvoices[0];
+    const dueDate = inv.due_date
+      ? new Date(inv.due_date).toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' })
+      : '—';
+    const amount  = 'Rp ' + Number(inv.total_ar).toLocaleString('id-ID');
+    lines.push(`We would like to remind you that the invoice for *${cust.customer_name}* (Invoice #${inv.invoice_id}) amounting to *${amount}* is due on *${dueDate}*.`);
+    lines.push('');
+    lines.push('Please process payment before the due date to avoid any delays.');
+  } else {
+    lines.push(`We would like to remind you regarding *${selectedInvoices.length} outstanding invoices* for *${cust.customer_name}*:`);
+    lines.push('');
+
+    let grandTotal = 0;
+    selectedInvoices.forEach((inv, i) => {
+      const dueDate = inv.due_date
+        ? new Date(inv.due_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+        : '—';
+      const amount  = 'Rp ' + Number(inv.total_ar).toLocaleString('id-ID');
+      const paid    = inv.ar_actual > 0 ? 'Rp ' + Number(inv.ar_actual).toLocaleString('id-ID') : '-';
+      const balance = Math.max(0, inv.total_ar - inv.ar_actual);
+      const balFmt  = balance > 0 ? 'Rp ' + Number(balance).toLocaleString('id-ID') : 'Settled ✓';
+      grandTotal   += balance;
+
+      lines.push(`${i + 1}. *Invoice #${inv.invoice_id}*`);
+      lines.push(`   Due Date : ${dueDate}`);
+      lines.push(`   Amount   : ${amount}`);
+      lines.push(`   Paid     : ${paid}`);
+      lines.push(`   Balance  : ${balFmt}`);
+      if (i < selectedInvoices.length - 1) lines.push('');
+    });
+
+    lines.push('');
+    const totalOutstanding = grandTotal > 0
+      ? 'Rp ' + Number(grandTotal).toLocaleString('id-ID')
+      : 'All settled ✓';
+    lines.push(`*Total Outstanding: ${totalOutstanding}*`);
+    lines.push('');
+    lines.push('Please process payment for each invoice before its respective due date to avoid any delays.');
+  }
+
+  lines.push('');
+  lines.push('If payment has already been made, kindly confirm with us.');
+  lines.push('');
+  lines.push('Thank you for your cooperation.');
+  lines.push('');
+  lines.push(`Best regards,\n${collectorName}\n${company}`);
+
+  return lines.join('\n');
+}
+
 /* ─── Selected count footer ──────────────────────────────── */
 function updateSelectedCount() {
   const count = document.querySelectorAll('.row-check:checked').length;
@@ -680,7 +806,6 @@ async function openCustReminderModal(customerCode) {
 
   document.getElementById('crd-name').textContent = cust.customer_name;
   document.getElementById('crd-id').textContent   = 'Customer ID: ' + cust.customer_code;
-  document.getElementById('crd-wa-results').style.display = 'none';
 
   document.getElementById('crd-info-grid').innerHTML =
     infoCard('PIC Name',      cust.pic_name,    '👤') +
@@ -834,6 +959,7 @@ function crdGetSelectedIds() {
   return Array.from(document.querySelectorAll('.crd-inv-check:checked')).map(cb => cb.value);
 }
 
+/* ─── Send Selected Email (customer detail modal) ──────── */
 async function sendCustomerBulkEmail() {
   if (!currentModalCustomer) return;
   const ids = crdGetSelectedIds();
@@ -864,6 +990,15 @@ async function sendCustomerBulkEmail() {
   }
 }
 
+/* ─── Send Selected WA (customer detail modal) ─────────── */
+/*
+ * Always shows the WA preview modal first, whether 1 or multiple invoices are selected.
+ * The modal displays:
+ *   - A badge row listing all selected invoices with their due dates (multi only)
+ *   - A grand total outstanding bar (multi only)
+ *   - The full message preview in a WhatsApp-green chat bubble
+ *   - An "Open WhatsApp" button that fires the real wa.me link
+ */
 async function sendCustomerBulkWA() {
   if (!currentModalCustomer) return;
   const ids = crdGetSelectedIds();
@@ -872,30 +1007,31 @@ async function sendCustomerBulkWA() {
     crdShakeButtons();
     return;
   }
-  const btn = document.getElementById('crd-wa-btn');
-  btn.disabled = true;
+
+  const cust             = currentModalCustomer;
+  const selectedInvoices = cust.invoices.filter(inv => ids.includes(String(inv.invoice_id)));
+  const btn              = document.getElementById('crd-wa-btn');
+  btn.disabled           = true;
+
   try {
+    // Fetch the server-generated WA URL (server handles phone normalisation, encoding, etc.)
     const res  = await fetch('/reminder/bulk', {
       method:'POST',
       headers:{'X-CSRF-TOKEN':CSRF,'Accept':'application/json','Content-Type':'application/json'},
       body: JSON.stringify({ type:'whatsapp', invoice_ids: ids }),
     });
     const data = await res.json();
+
     if (data.success && data.wa_links && data.wa_links.length > 0) {
-      const waEl = document.getElementById('crd-wa-results');
-      const linksEl = document.getElementById('crd-wa-links');
-      waEl.style.display = 'block';
-      linksEl.innerHTML = data.wa_links.map(l =>
-        `<a href="${l.url}" target="_blank"
-           style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:6px;
-                  background:#dcfce7;border:1px solid #86efac;border-radius:8px;
-                  text-decoration:none;color:#15803d;font-size:12px;font-weight:600;transition:all .15s">
-           💬 ${l.customer} — Open WhatsApp
-         </a>`
-      ).join('');
-      showToast(`${data.sent} WhatsApp link(s) created.`, 'success');
+      const waUrl      = data.wa_links[0].url;
+      const previewTxt = buildWaPreviewText(cust, selectedInvoices, cust.collector_name || '—');
+      const label      = selectedInvoices.length > 1
+        ? `${cust.customer_name} — ${selectedInvoices.length} invoices selected`
+        : `${cust.customer_name} — Invoice #${selectedInvoices[0].invoice_id}`;
+
+      showWaModal(label, previewTxt, waUrl, selectedInvoices);
     } else {
-      showToast(data.message || 'Failed to create WhatsApp links.', 'error');
+      showToast(data.message || 'Failed to create WhatsApp link.', 'error');
     }
   } catch(e) {
     showToast('A network error occurred.', 'error');
@@ -905,7 +1041,7 @@ async function sendCustomerBulkWA() {
   }
 }
 
-/* ─── Single invoice actions ──── */
+/* ─── Single invoice actions (per-row buttons) ──────────── */
 async function sendSingleEmailById(invoiceId, customerName, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
   try {
@@ -927,8 +1063,17 @@ async function sendSingleEmailById(invoiceId, customerName, btnEl) {
   }
 }
 
+/*
+ * Per-row WA button: fetches the server URL then shows the preview modal.
+ * Even for a single invoice click this goes through the same modal flow.
+ */
 async function sendSingleWAById(invoiceId, customerName, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
+
+  // Find the invoice object from the currently-open customer modal
+  const inv  = currentModalCustomer?.invoices.find(i => String(i.invoice_id) === String(invoiceId));
+  const cust = currentModalCustomer;
+
   try {
     const res  = await fetch(`/reminder/whatsapp/${invoiceId}`, {
       method:'POST',
@@ -936,11 +1081,17 @@ async function sendSingleWAById(invoiceId, customerName, btnEl) {
     });
     const data = await res.json();
     if (data.success) {
-      document.getElementById('wa-modal-customer').textContent = customerName;
-      const msg = decodeURIComponent(data.url.split('?text=')[1] || '');
-      document.getElementById('wa-modal-preview').textContent = msg;
-      document.getElementById('wa-open-link').href = data.url;
-      document.getElementById('wa-modal-overlay').style.display = 'flex';
+      const previewTxt = cust && inv
+        ? buildWaPreviewText(cust, [inv], cust.collector_name || '—')
+        : decodeURIComponent(data.url.split('?text=')[1] || '');
+
+      showWaModal(
+        `${customerName} — Invoice #${invoiceId}`,
+        previewTxt,
+        data.url,
+        inv ? [inv] : null
+      );
+
       if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'WA'; }
     } else {
       showToast(data.message || 'Failed.', 'error');
@@ -952,7 +1103,7 @@ async function sendSingleWAById(invoiceId, customerName, btnEl) {
   }
 }
 
-/* ─── Main table: send all invoices of a customer ──── */
+/* ─── Main table: send all invoices for a customer ──────── */
 async function sendCustomerEmail(customerCode) {
   const cust = GROUPED_CUSTOMERS[customerCode];
   if (!cust || !cust.has_email) return;
@@ -978,24 +1129,32 @@ async function sendCustomerEmail(customerCode) {
   }
 }
 
+/*
+ * Main table WA button: opens the customer in its detail modal first,
+ * then lets the user pick invoices — OR for a quick single send,
+ * show the preview for all invoices of that customer directly.
+ */
 async function sendCustomerWA(customerCode) {
   const cust = GROUPED_CUSTOMERS[customerCode];
   if (!cust || !cust.has_wa) return;
   const btn = document.getElementById('wa-btn-' + customerCode);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  const firstId = cust.invoice_ids[0];
+
   try {
-    const res  = await fetch(`/reminder/whatsapp/${firstId}`, {
+    const res  = await fetch('/reminder/bulk', {
       method:'POST',
       headers:{'X-CSRF-TOKEN':CSRF,'Accept':'application/json','Content-Type':'application/json'},
+      body: JSON.stringify({ type:'whatsapp', invoice_ids: cust.invoice_ids }),
     });
     const data = await res.json();
-    if (data.success) {
-      document.getElementById('wa-modal-customer').textContent = cust.customer_name;
-      const msg = decodeURIComponent(data.url.split('?text=')[1] || '');
-      document.getElementById('wa-modal-preview').textContent = msg;
-      document.getElementById('wa-open-link').href = data.url;
-      document.getElementById('wa-modal-overlay').style.display = 'flex';
+    if (data.success && data.wa_links && data.wa_links.length > 0) {
+      const waUrl      = data.wa_links[0].url;
+      const previewTxt = buildWaPreviewText(cust, cust.invoices, cust.collector_name || '—');
+      const label      = cust.invoice_ids.length > 1
+        ? `${cust.customer_name} — ${cust.invoice_ids.length} invoices`
+        : `${cust.customer_name}`;
+
+      showWaModal(label, previewTxt, waUrl, cust.invoices);
       if (btn) { btn.disabled = false; btn.textContent = 'WA'; }
     } else {
       showToast(data.message || 'Failed.', 'error');
@@ -1007,12 +1166,7 @@ async function sendCustomerWA(customerCode) {
   }
 }
 
-/* ─── WA modal ── */
-function closeWaModal() {
-  document.getElementById('wa-modal-overlay').style.display = 'none';
-}
-
-/* ─── Bulk modal (main table) ── */
+/* ─── Bulk modal (main table) ────────────────────────────── */
 let currentBulkType = 'email';
 
 function openBulkModal(type) {
@@ -1027,10 +1181,8 @@ function openBulkModal(type) {
   const sendBtn = document.getElementById('bulk-send-btn');
   sendBtn.style.background = isEmail ? 'var(--navy)' : '#16a34a';
   document.getElementById('bulk-send-label').textContent = isEmail ? 'Send Email' : 'Generate WA Links';
-  document.getElementById('bulk-wa-results').style.display = 'none';
   document.getElementById('bulk-modal-feedback').style.display = 'none';
 
-  // Clear search field
   const searchEl = document.getElementById('bulk-customer-search');
   if (searchEl) searchEl.value = '';
 
@@ -1045,7 +1197,6 @@ function openBulkModal(type) {
   requestAnimationFrame(() => { box.style.opacity = '1'; box.style.transform = 'translateY(0)'; });
 }
 
-/* ─── Build (or re-build) the customer list inside the bulk modal ── */
 function buildBulkList(isEmail, filterQuery) {
   const rows  = document.querySelectorAll('#reminder-table tbody tr');
   const query = filterQuery.trim().toLowerCase();
@@ -1061,7 +1212,6 @@ function buildBulkList(isEmail, filterQuery) {
     const cust     = GROUPED_CUSTOMERS[code];
     if (!cust) return;
 
-    // Apply search filter
     if (query && !cust.customer_name.toLowerCase().includes(query)) return;
     hasResults = true;
 
@@ -1075,7 +1225,6 @@ function buildBulkList(isEmail, filterQuery) {
     };
     const [bg, color] = urgColors[urgency] || ['#f1f5f9','#475569'];
 
-    // Highlight matched text
     let displayName = cust.customer_name;
     if (query) {
       const idx = displayName.toLowerCase().indexOf(query);
@@ -1110,7 +1259,6 @@ function buildBulkList(isEmail, filterQuery) {
 
   document.getElementById('bulk-invoice-list').innerHTML = html || '';
 
-  // Show/hide no-results message
   const noRes = document.getElementById('bulk-no-results');
   if (!hasResults && query) {
     noRes.style.display = 'block';
@@ -1123,10 +1271,8 @@ function buildBulkList(isEmail, filterQuery) {
   updateBulkCount();
 }
 
-/* ─── Filter customers in bulk modal by search input ── */
 function filterBulkCustomers(query) {
-  const isEmail = currentBulkType === 'email';
-  buildBulkList(isEmail, query);
+  buildBulkList(currentBulkType === 'email', query);
 }
 
 function closeBulkModal() {
@@ -1185,16 +1331,18 @@ async function executeBulkSend() {
     const data = await res.json();
     if (data.success) {
       if (currentBulkType === 'whatsapp' && data.wa_links && data.wa_links.length > 0) {
-        document.getElementById('bulk-wa-results').style.display = 'block';
-        document.getElementById('bulk-wa-links').innerHTML = data.wa_links.map(l =>
-          `<a href="${l.url}" target="_blank"
-             style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:6px;
-                    background:#dcfce7;border:1px solid #86efac;border-radius:8px;
-                    text-decoration:none;color:#15803d;font-size:12px;font-weight:600">
-             💬 ${l.customer} — Open WhatsApp
-           </a>`
-        ).join('');
-        showToast(`${data.sent} WhatsApp link(s) created.`, 'success');
+        // For bulk WA from the main table, show links directly (multiple customers)
+        fb.innerHTML  = `✅ ${data.sent} WhatsApp link(s) ready:<br><br>` +
+          data.wa_links.map(l =>
+            `<a href="${l.url}" target="_blank"
+               style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:6px;
+                      background:#dcfce7;border:1px solid #86efac;border-radius:8px;
+                      text-decoration:none;color:#15803d;font-size:12px;font-weight:600">
+               💬 ${l.customer} — Open WhatsApp
+             </a>`
+          ).join('');
+        fb.style.cssText = 'display:block;background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:12px 16px;border-radius:9px;font-size:13px;margin-top:14px';
+        showToast(`${data.sent} WhatsApp link(s) generated.`, 'success');
       } else {
         fb.textContent   = `✅ ${data.sent} email(s) sent · ${data.skipped} skipped`;
         fb.style.cssText = 'display:block;background:#dcfce7;border:1px solid #86efac;color:#166534;padding:12px 16px;border-radius:9px;font-size:13px;font-weight:600;margin-top:14px';
